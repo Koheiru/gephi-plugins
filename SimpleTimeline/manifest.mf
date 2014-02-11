@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+OpenIDE-Module: ru.kohei.desktop.timeline
+OpenIDE-Module-Localizing-Bundle: ru/kohei/desktop/timeline/Bundle.properties
+OpenIDE-Module-Requires: org.openide.windows.WindowManager
+OpenIDE-Module-Specification-Version: 1.0
+
