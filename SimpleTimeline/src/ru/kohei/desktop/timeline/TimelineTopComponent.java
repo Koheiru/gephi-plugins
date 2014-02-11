@@ -51,11 +51,11 @@ public class TimelineTopComponent extends javax.swing.JPanel {
         disabledPanel.setLayout(disabledPanelLayout);
         disabledPanelLayout.setHorizontalGroup(
             disabledPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 596, Short.MAX_VALUE)
+            .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 660, Short.MAX_VALUE)
         );
         disabledPanelLayout.setVerticalGroup(
             disabledPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 202, Short.MAX_VALUE)
+            .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 105, Short.MAX_VALUE)
         );
 
         topContainer.add(disabledPanel, "card2");
@@ -143,14 +143,14 @@ public class TimelineTopComponent extends javax.swing.JPanel {
         );
         timelinePanelLayout.setVerticalGroup(
             timelinePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 85, Short.MAX_VALUE)
+            .addGap(0, 61, Short.MAX_VALUE)
         );
 
         javax.swing.GroupLayout enabledPanelLayout = new javax.swing.GroupLayout(enabledPanel);
         enabledPanel.setLayout(enabledPanelLayout);
         enabledPanelLayout.setHorizontalGroup(
             enabledPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(controlsPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(controlsPanel, javax.swing.GroupLayout.DEFAULT_SIZE, 660, Short.MAX_VALUE)
             .addComponent(timelinePanel, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         enabledPanelLayout.setVerticalGroup(
@@ -167,7 +167,7 @@ public class TimelineTopComponent extends javax.swing.JPanel {
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(topContainer, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(topContainer, javax.swing.GroupLayout.DEFAULT_SIZE, 660, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
