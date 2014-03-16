@@ -4,19 +4,52 @@
  */
 package ru.kohei.desktop.timeline;
 
+import javax.swing.*;
+import org.openide.util.Lookup;
+import ru.kohei.timeline.api.TimelineController;
+import ru.kohei.timeline.api.TimelineModel;
+import ru.kohei.timeline.api.TimelineModelEvent;
+import ru.kohei.timeline.api.TimelineModelListener;
+
 /**
  *
- * @author Yury
+ * @author Prostov Yury <prostov.yury@yandex.ru>
  */
-public class TimelineTopComponent extends javax.swing.JPanel {
-
+public class TimelineTopComponent extends JPanel implements TimelineModelListener {
+    
+    private transient TimelineModel model;
+    private transient TimelineController controller;
+    
     /**
      * Creates new form TimelineTopComponent
      */
     public TimelineTopComponent() {
         initComponents();
+        
+        controller = Lookup.getDefault().lookup(TimelineController.class);
+        setTimelineModel(controller.getModel());
     }
 
+    private void setTimelineModel(TimelineModel model)
+    {
+        this.model = model;
+    }
+    
+    @Override
+    public void timelineModelChanged(TimelineModelEvent event) {
+        if (event.getEventType() == TimelineModelEvent.EventType.MODEL) {
+            setTimelineModel(event.getSource());
+        }
+        else if (event.getEventType() == TimelineModelEvent.EventType.ENABLED) {
+        }
+        else if (event.getEventType() == TimelineModelEvent.EventType.VALID_BOUNDS) {
+        }
+        else if (event.getEventType() == TimelineModelEvent.EventType.PLAY_START) {
+        }
+        else if (event.getEventType() == TimelineModelEvent.EventType.PLAY_STOP) {
+        }
+    }
+    
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -70,11 +103,6 @@ public class TimelineTopComponent extends javax.swing.JPanel {
         org.openide.awt.Mnemonics.setLocalizedText(playButton, org.openide.util.NbBundle.getMessage(TimelineTopComponent.class, "TimelineTopComponent.playButton.text")); // NOI18N
         playButton.setMinimumSize(new java.awt.Dimension(45, 32));
         playButton.setPreferredSize(new java.awt.Dimension(45, 32));
-        playButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                playButtonActionPerformed(evt);
-            }
-        });
         playPanel.add(playButton, "card2");
 
         pauseButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/ru/kohei/desktop/timeline/resources/pause_button.png"))); // NOI18N
@@ -167,17 +195,13 @@ public class TimelineTopComponent extends javax.swing.JPanel {
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(topContainer, javax.swing.GroupLayout.DEFAULT_SIZE, 660, Short.MAX_VALUE)
+            .addComponent(topContainer, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(topContainer, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
-
-    private void playButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_playButtonActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_playButtonActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JPanel controlsPanel;
@@ -194,4 +218,5 @@ public class TimelineTopComponent extends javax.swing.JPanel {
     private javax.swing.JPanel timelinePanel;
     private javax.swing.JPanel topContainer;
     // End of variables declaration//GEN-END:variables
+
 }
