@@ -4,6 +4,9 @@
  */
 package ru.kohei.desktop.timeline;
 
+import java.awt.CardLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import javax.swing.*;
 import org.openide.util.Lookup;
 import ru.kohei.timeline.api.TimelineController;
@@ -13,10 +16,11 @@ import ru.kohei.timeline.api.TimelineModelListener;
 
 /**
  *
- * @author Prostov Yury <prostov.yury@yandex.ru>
+ * @author Prostov Yury
  */
 public class TimelineTopComponent extends JPanel implements TimelineModelListener {
     
+    private transient TimelineDrawer drawer;
     private transient TimelineModel model;
     private transient TimelineController controller;
     
@@ -26,13 +30,63 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
     public TimelineTopComponent() {
         initComponents();
         
+        drawer = (TimelineDrawer)timelinePanel;
+        
         controller = Lookup.getDefault().lookup(TimelineController.class);
+        controller.addListener(this);
         setTimelineModel(controller.getModel());
-    }
-
-    private void setTimelineModel(TimelineModel model)
-    {
-        this.model = model;
+        
+        playButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                if (!model.isPlaying()) {
+                    controller.startPlay();
+                }
+            }
+        });
+        
+        pauseButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                if (model.isPlaying()) {
+                    controller.stopPlay();
+                }
+            }
+        });
+        
+        stepForwardButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                controller.stepForward();
+            }
+        });
+        
+        stepBackwardButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                controller.stepBackward();
+            }
+        });
+        
+        rewindForwardButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                if (model != null) {
+                    double intervalBegin = model.getIntervalStart();
+                    double intervalEnd   = model.getIntervalEnd();
+                    double intervalLength = intervalEnd - intervalBegin;
+                    double min = model.getCustomMin();
+                    controller.setInterval(min, min + intervalLength);
+                }
+            }
+        });
+        
+        rewindBackwardButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                if (model != null) {
+                    double intervalBegin = model.getIntervalStart();
+                    double intervalEnd   = model.getIntervalEnd();
+                    double intervalLength = intervalEnd - intervalBegin;
+                    double max = model.getCustomMax();
+                    controller.setInterval(max - intervalLength, max);                    
+                }
+            }
+        });
     }
     
     @Override
@@ -41,14 +95,65 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
             setTimelineModel(event.getSource());
         }
         else if (event.getEventType() == TimelineModelEvent.EventType.ENABLED) {
+            updateEnabledState();
         }
         else if (event.getEventType() == TimelineModelEvent.EventType.VALID_BOUNDS) {
+            updateEnabledState();
         }
         else if (event.getEventType() == TimelineModelEvent.EventType.PLAY_START) {
+            updatePlayingState();
         }
         else if (event.getEventType() == TimelineModelEvent.EventType.PLAY_STOP) {
+            updatePlayingState();
         }
+        drawer.consumeEvent(event);
     }
+
+    private void setTimelineModel(TimelineModel model)
+    {
+        this.model = model;
+        updateEnabledState();
+        
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                TimelineModel model = TimelineTopComponent.this.model;
+                drawer.setModel(model);
+            }
+        });
+    }
+    
+    private void updateEnabledState() {
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                CardLayout cardLayout = (CardLayout)topContainer.getLayout();
+                TimelineModel model = TimelineTopComponent.this.model;
+                boolean isModelEnabled = (model != null && model.hasValidBounds());
+                if (isModelEnabled) {
+                    cardLayout.show(topContainer, "enabledPanel");
+                }
+                else {
+                    cardLayout.show(topContainer, "disabledPanel");
+                }
+            }
+        });
+    }
+    
+    private void updatePlayingState() {
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                CardLayout cardLayout = (CardLayout)playPanel.getLayout();
+                TimelineModel model = TimelineTopComponent.this.model;
+                boolean isPlaying = (model != null && model.isPlaying());
+                if (isPlaying) {
+                    cardLayout.show(playPanel, "pauseButton");
+                }
+                else {
+                    cardLayout.show(playPanel, "playButton");
+                }
+            }
+        });
+    }
+    
     
     /**
      * This method is called from within the constructor to initialize the form.
@@ -72,7 +177,7 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
         rewindForwardButton = new javax.swing.JButton();
         stepBackwardButton = new javax.swing.JButton();
         rewindBackwardButton = new javax.swing.JButton();
-        timelinePanel = new javax.swing.JPanel();
+        timelinePanel = new TimelineDrawer();
 
         topContainer.setLayout(new java.awt.CardLayout());
 
@@ -91,7 +196,7 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
             .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 105, Short.MAX_VALUE)
         );
 
-        topContainer.add(disabledPanel, "card2");
+        topContainer.add(disabledPanel, "disabledPanel");
 
         controlsPanel.setMinimumSize(new java.awt.Dimension(548, 38));
         controlsPanel.setPreferredSize(new java.awt.Dimension(593, 38));
@@ -103,13 +208,13 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
         org.openide.awt.Mnemonics.setLocalizedText(playButton, org.openide.util.NbBundle.getMessage(TimelineTopComponent.class, "TimelineTopComponent.playButton.text")); // NOI18N
         playButton.setMinimumSize(new java.awt.Dimension(45, 32));
         playButton.setPreferredSize(new java.awt.Dimension(45, 32));
-        playPanel.add(playButton, "card2");
+        playPanel.add(playButton, "playButton");
 
         pauseButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/ru/kohei/desktop/timeline/resources/pause_button.png"))); // NOI18N
         org.openide.awt.Mnemonics.setLocalizedText(pauseButton, org.openide.util.NbBundle.getMessage(TimelineTopComponent.class, "TimelineTopComponent.pauseButton.text")); // NOI18N
         pauseButton.setMinimumSize(new java.awt.Dimension(45, 32));
         pauseButton.setPreferredSize(new java.awt.Dimension(45, 32));
-        playPanel.add(pauseButton, "card3");
+        playPanel.add(pauseButton, "pauseButton");
 
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 3;
@@ -189,7 +294,7 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
                 .addComponent(controlsPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
-        topContainer.add(enabledPanel, "card2");
+        topContainer.add(enabledPanel, "enabledPanel");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -215,7 +320,7 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
     private javax.swing.JButton rewindForwardButton;
     private javax.swing.JButton stepBackwardButton;
     private javax.swing.JButton stepForwardButton;
-    private javax.swing.JPanel timelinePanel;
+    private transient javax.swing.JPanel timelinePanel;
     private javax.swing.JPanel topContainer;
     // End of variables declaration//GEN-END:variables
 

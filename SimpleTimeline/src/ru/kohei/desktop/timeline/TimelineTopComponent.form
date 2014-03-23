@@ -33,7 +33,7 @@
         <Container class="javax.swing.JPanel" name="disabledPanel">
           <Constraints>
             <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.DesignCardLayout" value="org.netbeans.modules.form.compat2.layouts.DesignCardLayout$CardConstraintsDescription">
-              <CardConstraints cardName="card2"/>
+              <CardConstraints cardName="disabledPanel"/>
             </Constraint>
           </Constraints>
 
@@ -64,7 +64,7 @@
         <Container class="javax.swing.JPanel" name="enabledPanel">
           <Constraints>
             <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.DesignCardLayout" value="org.netbeans.modules.form.compat2.layouts.DesignCardLayout$CardConstraintsDescription">
-              <CardConstraints cardName="card2"/>
+              <CardConstraints cardName="enabledPanel"/>
             </Constraint>
           </Constraints>
 
@@ -124,7 +124,7 @@
                       </Properties>
                       <Constraints>
                         <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.DesignCardLayout" value="org.netbeans.modules.form.compat2.layouts.DesignCardLayout$CardConstraintsDescription">
-                          <CardConstraints cardName="card2"/>
+                          <CardConstraints cardName="playButton"/>
                         </Constraint>
                       </Constraints>
                     </Component>
@@ -145,7 +145,7 @@
                       </Properties>
                       <Constraints>
                         <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.DesignCardLayout" value="org.netbeans.modules.form.compat2.layouts.DesignCardLayout$CardConstraintsDescription">
-                          <CardConstraints cardName="card3"/>
+                          <CardConstraints cardName="pauseButton"/>
                         </Constraint>
                       </Constraints>
                     </Component>
@@ -239,6 +239,10 @@
               </SubComponents>
             </Container>
             <Container class="javax.swing.JPanel" name="timelinePanel">
+              <AuxValues>
+                <AuxValue name="JavaCodeGenerator_CreateCodeCustom" type="java.lang.String" value="new TimelineDrawer()"/>
+                <AuxValue name="JavaCodeGenerator_VariableModifier" type="java.lang.Integer" value="130"/>
+              </AuxValues>
 
               <Layout>
                 <DimensionLayout dim="0">
