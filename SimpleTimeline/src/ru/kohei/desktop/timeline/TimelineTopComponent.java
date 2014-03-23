@@ -131,7 +131,7 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
         timelineDrawer.setLayout(timelineDrawerLayout);
         timelineDrawerLayout.setHorizontalGroup(
             timelineDrawerLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 543, Short.MAX_VALUE)
+            .addGap(0, 523, Short.MAX_VALUE)
         );
         timelineDrawerLayout.setVerticalGroup(
             timelineDrawerLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -146,6 +146,7 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
         gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
         gridBagConstraints.weightx = 1.0;
         gridBagConstraints.weighty = 1.0;
+        gridBagConstraints.insets = new java.awt.Insets(0, 10, 0, 10);
         enabledPanel.add(timelineDrawer, gridBagConstraints);
 
         timelineManipulator.setPreferredSize(new java.awt.Dimension(400, 60));
