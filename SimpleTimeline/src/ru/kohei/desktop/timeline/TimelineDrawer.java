@@ -14,132 +14,160 @@ import java.awt.image.BufferedImage;
 import java.util.Locale;
 import javax.swing.JPanel;
 import javax.swing.Timer;
+import org.gephi.data.attributes.type.Interval;
 import ru.kohei.timeline.api.TimelineController;
 import ru.kohei.timeline.api.TimelineModel;
 import ru.kohei.timeline.api.TimelineModelEvent;
+import ru.kohei.timeline.api.TimelineModelEvent.EventType;
+import ru.kohei.timeline.api.TimelineModelListener;
 import org.openide.util.Lookup;
 
 /**
  *
  * @author Prostov Yury
  */
-public class TimelineDrawer extends JPanel implements MouseListener, MouseMotionListener {
+public class TimelineDrawer extends JPanel 
+implements MouseListener, MouseMotionListener, TimelineModelListener {
 
-    //Consts
-    private static Cursor CURSOR_DEFAULT = new Cursor(Cursor.DEFAULT_CURSOR);
-    private static Cursor CURSOR_LEFT_HOOK = new Cursor(Cursor.E_RESIZE_CURSOR);
-    private static Cursor CURSOR_CENTRAL_HOOK = new Cursor(Cursor.MOVE_CURSOR);
-    private static Cursor CURSOR_RIGHT_HOOK = new Cursor(Cursor.W_RESIZE_CURSOR);
-    private static final int LOC_RESIZE_FROM = 1;
-    private static final int LOC_RESIZE_TO = 2;
-    private static final int LOC_RESIZE_CENTER = 3;
-    private static final int LOC_RESIZE_UNKNOWN = -1;
-    private static Locale LOCALE = Locale.ENGLISH;
+    private transient TimelineModel m_model;
+    private transient TimelineController m_controller;
+    
     //Settings
     private DrawerSettings settings = new DrawerSettings();
-    //Flags
-    private Integer latestMousePositionX = null;
-    private int currentMousePositionX = 0;
-    private Timer viewToModelSync = null;
-    private Timer modelToViewSync = null;
-    private boolean mouseInside = false;
-    //Model
-    private TimelineModel model;
-    private TimelineController controller;
-    //Ticks
     private TickGraph tickGraph = new TickGraph();
-    //Sparkline
-    private Sparkline sparkline = new Sparkline();
-
-    public enum TimelineState {
-
-        IDLE,
-        MOVING,
-        RESIZE_FROM,
-        RESIZE_TO
-    }
-    TimelineState currentState = TimelineState.IDLE;
-
-    public enum HighlightedComponent {
-
-        NONE,
-        LEFT_HOOK,
-        RIGHT_HOOK,
-        CENTER_HOOK
-    }
-    HighlightedComponent highlightedComponent = HighlightedComponent.NONE;
-
+    
+    
     public TimelineDrawer() {
         addMouseMotionListener(this);
-        addMouseListener(this);
+        addMouseListener(this);        
     }
-
-    public void consumeEvent(TimelineModelEvent event) {
-        switch (event.getEventType()) {
-            case POSITION_CHANGED:
-                double epsilon = 1.0;
-                Double data = (Double)event.getData();
-                setInterval(data.doubleValue() - epsilon, data.doubleValue() + epsilon);
-                break;
-            case CUSTOM_BOUNDS_CHANGED:
-                double[] data2 = (double[]) event.getData();
-                if (data2 == null) {
-                    data2 = new double[] { Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY };
-                }
-                setCustomBounds(data2[0], data2[1]);
-                break;
-            case GLOBAL_BOUNDS_CHANGED:
-                double[] data3 = (double[]) event.getData();
-                setMinMax(data3[0], data3[1]);
-                break;
+    
+    public void initialize(TimelineController controller) {
+        m_controller = controller;
+        m_model = m_controller.getModel();
+        m_controller.addListener(this);
+        updateState();
+    }
+    
+    @Override
+    public void timelineModelChanged(TimelineModelEvent event) {
+        if (event.getEventType().equals(EventType.MODEL_CHANGED)) {
+            m_model = event.getSource();
         }
+        updateState();
     }
+    
+    private void updateState() {
+        repaint();
+    }
+    
+    @Override
+    public void paintComponent(Graphics graphics) {
+        super.paintComponent(graphics);
 
-    public void setModel(TimelineModel model) {
-        this.controller = Lookup.getDefault().lookup(TimelineController.class);
-        this.model = model;
+        int width = getWidth();
+        int height = getHeight();
+
+        settings.update(width, height);
+        Graphics2D painter = (Graphics2D)graphics;
+
+        int innerWidth = width - 1;
+        int innerHeight = height - settings.tmMarginBottom - 2;
+        int innerY = settings.tmMarginTop + 1;
+        if (settings.background.top != null) {
+            painter.setColor(settings.background.top);
+            painter.fillRect(0, innerY, innerWidth, innerHeight);
+        }
         
-        if (model != null) {
-            org.gephi.data.attributes.type.Interval globalBounds = model.getGlobalBounds();
-            setMinMax(globalBounds.getLow(), globalBounds.getHigh());
-            if (model.hasCustomBounds()) {
-                org.gephi.data.attributes.type.Interval customBounds = model.getCustomBounds();
-                setCustomBounds(customBounds.getLow(), customBounds.getHigh());
-            }
-            
-            double epsilon = 1.0;
-            double position = model.getPosition();
-            setInterval(position - epsilon, position + epsilon);
-        } else {
-            repaint();
+//        g2d.setBackground(settings.background.top);
+//        g2d.setPaint(settings.background.paint);
+//        g2d.setColor(settings.background.top);
+//        g2d.fillRect(0, innerY, innerWidth, innerHeight);
+
+        if (!isEnabled()) {
+            return;
         }
-    }
+        if (m_model == null || !m_model.hasValidBounds()) {
+            return;
+        }
 
-    public void setMinMax(double min, double max) {
-        repaint();
-    }
+        Interval bounds = m_model.getCustomBounds();
+        double minBound = bounds.getLow();
+        double maxBound = bounds.getHigh();
+        double position = m_model.getPosition();
+        
+        int positionPixel = getPixelPosition(position, maxBound - minBound, minBound, width);
+        positionPixel = Math.min(width, Math.max(0, positionPixel));
+        
+        painter.setRenderingHints(settings.renderingHints);
+        painter.drawImage(tickGraph.getImage(m_model, innerWidth, innerHeight), 0, innerY, null);
+        
+        
+        // SELECTED ZONE WIDTH, IN PIXELS
+        int sw = 2;
 
-    public void setCustomBounds(double min, double max) {
-        repaint();
+        painter.setPaint(settings.defaultStrokeColor);
+        painter.fillRect(positionPixel, settings.tmMarginTop, sw, height - settings.tmMarginBottom - 1);
+        
+        //double v = getReal(currentMousePositionX, max - min, min, width);
     }
-
-    public void setInterval(double from, double to) {
-        repaint();
-    }
-
-    public int getPixelPosition(double val, double duration, double min, int width) {
+    
+    private int getPixelPosition(double val, double duration, double min, int width) {
         return (int) ((val - min) * (width / duration));
     }
-
-    public double getReal(int pixel, double duration, double min, int width) {
-        return pixel * (duration / width) + min;
+    
+    /*
+    private boolean inRange(int x, int a, int b) {
+        return (a < x && x < b);
     }
 
-    /** This method is called from within the constructor to
-     * initialize the form.
-     * WARNING: Do NOT modify this code. The content of this method is
-     * always regenerated by the Form Editor.
-     */
+    private double getReal(int pixel, double duration, double min, int width) {
+        return pixel * (duration / width) + min;
+    }
+    */
+    
+    @Override
+    public void mouseClicked(MouseEvent event) {
+        /*
+        if (m_model == null) {
+            return;
+        }
+
+        int x = event.getX();
+        int width = getWidth();
+
+        Interval bounds = m_model.getCustomBounds();
+        double minBound = bounds.getLow();
+        double maxBound = bounds.getHigh();
+        double position = getReal(x, maxBound - minBound, minBound, width);
+        m_controller.setPosition(position);
+        */
+    }
+
+    @Override
+    public void mousePressed(MouseEvent event) {
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent event) {
+    }
+
+    @Override
+    public void mouseEntered(MouseEvent event) {
+    }
+
+    @Override
+    public void mouseExited(MouseEvent event) {
+    }
+
+    @Override
+    public void mouseDragged(MouseEvent event) {
+    }
+
+    @Override
+    public void mouseMoved(MouseEvent event) {
+    }
+   
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -150,406 +178,4 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
     // Variables declaration - do not modify//GEN-BEGIN:variables
     // End of variables declaration//GEN-END:variables
 
-    @Override
-    public void paintComponent(Graphics g) {
-        super.paintComponent(g);
-
-        int width = getWidth();
-        int height = getHeight();
-
-        settings.update(width, height);
-        Graphics2D g2d = (Graphics2D) g;
-
-        int innerWidth = width - 1;
-        int innerHeight = height - settings.tmMarginBottom - 2;
-        int innerY = settings.tmMarginTop + 1;
-        if(settings.background.top != null) {
-            g2d.setColor(settings.background.top);
-            g2d.fillRect(0, innerY, innerWidth, innerHeight);
-        }
-//        g2d.setBackground(settings.background.top);
-//        g2d.setPaint(settings.background.paint);
-//        g2d.setColor(settings.background.top);
-//        g2d.fillRect(0, innerY, innerWidth, innerHeight);
-
-        if (!this.isEnabled()) {
-            return;
-        }
-        if (model == null) {
-            return;
-        }
-
-        org.gephi.data.attributes.type.Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
-        double min = bounds.getLow();
-        double max = bounds.getHigh();
-            
-        double epsilon = 1.0;
-        double intervalStart = model.getPosition();
-        double intervalEnd = intervalStart + epsilon;
-
-        int intervalStartPixel = Math.max(0, getPixelPosition(intervalStart, max - min, min, width));
-        int intervalEndPixel = Math.min(width, getPixelPosition(intervalEnd, max - min, min, width));
-
-        g2d.setRenderingHints(settings.renderingHints);
-
-        //TICKS
-        g2d.drawImage(tickGraph.getImage(model, innerWidth, innerHeight), 0, innerY, null);
-
-        // VISIBLE HOOK (THE LITTLE GREEN RECTANGLE ON EACH SIDE) WIDTH
-        int vhw = settings.selection.visibleHookWidth;
-
-        // SELECTED ZONE WIDTH, IN PIXELS
-        int sw = intervalEndPixel - intervalStartPixel;
-
-        if (highlightedComponent != HighlightedComponent.NONE) {
-            g2d.setPaint(settings.selection.mouseOverPaint);
-            switch (highlightedComponent) {
-                case LEFT_HOOK:
-                    g2d.fillRect(
-                            intervalStartPixel,
-                            settings.tmMarginTop,
-                            vhw,
-                            height - settings.tmMarginBottom - 1);
-                    g2d.setPaint(settings.selection.paint);
-                    g2d.fillRect(
-                            intervalStartPixel + vhw,
-                            settings.tmMarginTop,
-                            sw - vhw,
-                            height - settings.tmMarginBottom - 1);
-                    break;
-                case CENTER_HOOK:
-                    g2d.setPaint(settings.selection.paint);
-                    g2d.fillRect(
-                            intervalStartPixel,
-                            settings.tmMarginTop,
-                            vhw,
-                            height - settings.tmMarginBottom - 1);
-                    g2d.setPaint(settings.selection.mouseOverPaint);
-                    g2d.fillRect(
-                            intervalStartPixel + vhw,
-                            settings.tmMarginTop,
-                            sw - vhw * 2,
-                            height - settings.tmMarginBottom - 1);
-                    g2d.setPaint(settings.selection.paint);
-                    g2d.fillRect(
-                            intervalEndPixel - vhw,
-                            settings.tmMarginTop,
-                            vhw,
-                            height - settings.tmMarginBottom - 1);
-                    break;
-                case RIGHT_HOOK:
-                    g2d.setPaint(settings.selection.paint);
-                    g2d.fillRect(
-                            intervalStartPixel,
-                            settings.tmMarginTop,
-                            sw - vhw,
-                            height - settings.tmMarginBottom - 1);
-                    g2d.setPaint(settings.selection.mouseOverPaint);
-                    g2d.fillRect(
-                            intervalEndPixel - vhw,
-                            settings.tmMarginTop,
-                            vhw,
-                            height - settings.tmMarginBottom - 1);
-                    break;
-            }
-        } else {
-            g2d.setPaint(settings.selection.paint);
-            g2d.fillRect(intervalStartPixel, settings.tmMarginTop, sw, height - settings.tmMarginBottom - 1);
-        }
-
-        g2d.setColor(settings.defaultStrokeColor);
-        g2d.drawRect(intervalStartPixel, settings.tmMarginTop, sw - 1, height - settings.tmMarginBottom - 1);
-
-        double v = getReal(currentMousePositionX, max - min, min, width);
-    }
-
-    private boolean inRange(int x, int a, int b) {
-        return (a < x && x < b);
-    }
-
-    /**
-     * Position of current x.
-     * @param x current location
-     * @param r width of slider
-     * @return LOC_RESIZE_*
-     */
-    private int inPosition(int x, int r, int sf, int st) {
-        boolean resizeFrom = inRange(x, (int) sf - 1, (int) sf + r + 1);
-        boolean resizeTo = inRange(x, (int) st - r - 1, (int) st + 1);
-        if (resizeFrom && resizeTo) {
-            if (inRange(x, (int) sf - 1, (int) (sf + st) / 2)) {
-                return LOC_RESIZE_FROM;
-            } else if (inRange(x, (int) (sf + st) / 2, (int) st + 1)) {
-                return LOC_RESIZE_TO;
-            }
-        }
-        if (resizeFrom) {
-            return LOC_RESIZE_FROM;
-        } else if (inRange(x, (int) sf + r, (int) st - r)) {
-            return LOC_RESIZE_CENTER;
-        } else if (resizeTo) {
-            return LOC_RESIZE_TO;
-        } else {
-            return LOC_RESIZE_UNKNOWN;
-        }
-
-    }
-
-    public void mouseClicked(MouseEvent e) {
-        latestMousePositionX = e.getX();
-        currentMousePositionX = latestMousePositionX;
-    }
-
-    public void mousePressed(MouseEvent e) {
-        if (model == null) {
-            return;
-        }
-        int x = e.getX();
-        latestMousePositionX = x;
-        currentMousePositionX = latestMousePositionX;
-        int r = settings.selection.visibleHookWidth + settings.selection.invisibleHookMargin;
-        
-        int width = getWidth();
-        
-        org.gephi.data.attributes.type.Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
-        double min = bounds.getLow();
-        double max = bounds.getHigh();
-        
-        double epsilon = 1.0;
-        double intervalStart = model.getPosition();
-        double intervalEnd = intervalStart + epsilon;
-
-        int sf = Math.max(0, getPixelPosition(intervalStart, max - min, min, width));
-        int st = Math.min(width, getPixelPosition(intervalEnd, max - min, min, width));
-
-        if (currentState == TimelineState.IDLE) {
-            int position = inPosition(x, r, sf, st);
-            switch (position) {
-                case LOC_RESIZE_FROM:
-                    highlightedComponent = HighlightedComponent.LEFT_HOOK;
-                    currentState = TimelineState.RESIZE_FROM;
-                    break;
-                case LOC_RESIZE_CENTER:
-                    highlightedComponent = HighlightedComponent.CENTER_HOOK;
-                    currentState = TimelineState.MOVING;
-                    break;
-                case LOC_RESIZE_TO:
-                    highlightedComponent = HighlightedComponent.RIGHT_HOOK;
-                    currentState = TimelineState.RESIZE_TO;
-                    break;
-                default:
-                    break;
-            }
-        }
-//        if(e.isPopupTrigger()) {
-//            System.out.println("popup!");
-//            MetricPopup.setLocation(e.getX(), e.getY());
-//            MetricPopup.setVisible(true);
-//        }        
-    }
-
-    public void mouseEntered(MouseEvent e) {
-        //throw new UnsupportedOperationException("Not supported yet.");
-        if (currentState == TimelineState.IDLE) {
-            latestMousePositionX = e.getX();
-            currentMousePositionX = latestMousePositionX;
-        }
-        mouseInside = true;
-    }
-
-    public void mouseExited(MouseEvent e) {
-        //throw new UnsupportedOperationException("Not supported yet.");
-        if (currentState == TimelineState.IDLE) {
-            highlightedComponent = HighlightedComponent.NONE;
-            latestMousePositionX = e.getX();
-            currentMousePositionX = latestMousePositionX;
-        }
-        mouseInside = false;
-        repaint();
-    }
-
-    public void mouseReleased(MouseEvent evt) {
-
-        latestMousePositionX = evt.getX();
-        currentMousePositionX = latestMousePositionX;
-        //highlightedComponent = HighlightedComponent.NONE;
-        currentState = TimelineState.IDLE;
-        this.getParent().repaint(); // so it will repaint upper and bottom panes
-    }
-
-    public void mouseMoved(MouseEvent evt) {
-        if (model == null) {
-            return;
-        }
-
-        //System.out.println("mouse moved");
-        currentMousePositionX = evt.getX();
-        int x = currentMousePositionX;
-        int width = getWidth();
-        int r = settings.selection.visibleHookWidth;
-
-        org.gephi.data.attributes.type.Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
-        double min = bounds.getLow();
-        double max = bounds.getHigh();
-        
-        double epsilon = 1.0;
-        double intervalStart = model.getPosition();
-        double intervalEnd = intervalStart + epsilon;
-
-        int sf = Math.max(0, getPixelPosition(intervalStart, max - min, min, width));
-        int st = Math.min(width, getPixelPosition(intervalEnd, max - min, min, width));
-
-        // SELECTED ZONE BEGIN POSITION, IN PIXELS
-        // int sf = (int) (model.getFromFloat() * (double) w);
-
-        // SELECTED ZONE END POSITION, IN PIXELS
-        //int st = (int) (model.getToFloat() * (double) w);
-
-        HighlightedComponent old = highlightedComponent;
-        Cursor newCursor = null;
-
-        int a = 0;//settings.selection.invisibleHookMargin;
-
-        int position = inPosition(x, r, sf, st);
-        switch (position) {
-            case LOC_RESIZE_FROM:
-                newCursor = CURSOR_LEFT_HOOK;
-                highlightedComponent = HighlightedComponent.LEFT_HOOK;
-                break;
-            case LOC_RESIZE_CENTER:
-                highlightedComponent = HighlightedComponent.CENTER_HOOK;
-                newCursor = CURSOR_CENTRAL_HOOK;
-                break;
-            case LOC_RESIZE_TO:
-                highlightedComponent = HighlightedComponent.RIGHT_HOOK;
-                newCursor = CURSOR_RIGHT_HOOK;
-                break;
-            default:
-                highlightedComponent = HighlightedComponent.NONE;
-                newCursor = CURSOR_DEFAULT;
-                break;
-        }
-        if (newCursor != getCursor()) {
-            setCursor(newCursor);
-        }
-        // only repaint if highlight has changed (save a lot of fps)
-        if (highlightedComponent != old) {
-            repaint();
-        }
-//         now we always repaint, because of the tooltip
-//        repaint();
-
-    }
-
-    public void mouseDragged(MouseEvent evt) {
-
-        if (model == null) {
-            return;
-        }
-        int width = getWidth();
-
-        org.gephi.data.attributes.type.Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
-        double min = bounds.getLow();
-        double max = bounds.getHigh();
-        
-        double epsilon = 1.0;
-        double intervalStart = model.getPosition();
-        double intervalEnd = intervalStart + epsilon;
-
-        int sf = Math.max(0, getPixelPosition(intervalStart, max - min, min, width));
-        int st = Math.min(width, getPixelPosition(intervalEnd, max - min, min, width));
-
-        currentMousePositionX = evt.getX();
-        currentMousePositionX = Math.max(0, currentMousePositionX);
-        currentMousePositionX = Math.min(width, currentMousePositionX);
-        int x = currentMousePositionX;
-
-        int r = settings.selection.visibleHookWidth;
-
-        // SELECTED ZONE BEGIN POSITION, IN PIXELS
-        // sf = (model.getFromFloat() * w);
-
-        // SELECTED ZONE END POSITION, IN PIXELS
-        //st = (model.getToFloat() * w);
-
-        if (currentState == TimelineState.IDLE) {
-            int position = inPosition(x, r, sf, st);
-            switch (position) {
-                case LOC_RESIZE_FROM:
-                    highlightedComponent = HighlightedComponent.LEFT_HOOK;
-                    currentState = TimelineState.RESIZE_FROM;
-                    break;
-                case LOC_RESIZE_CENTER:
-                    highlightedComponent = HighlightedComponent.CENTER_HOOK;
-                    currentState = TimelineState.MOVING;
-                    break;
-                case LOC_RESIZE_TO:
-                    highlightedComponent = HighlightedComponent.RIGHT_HOOK;
-                    currentState = TimelineState.RESIZE_TO;
-                    break;
-                default:
-                    break;
-            }
-        }
-        double delta = 0;
-        if (latestMousePositionX != null) {
-            delta = x - latestMousePositionX;
-        }
-        latestMousePositionX = x;
-
-        // minimal selection zone width (a security to not crush it!)
-        int s = settings.selection.minimalWidth;
-
-        switch (currentState) {
-            case RESIZE_FROM:
-
-                //problem: moving the left part will crush the security zone
-                if ((sf + delta) >= (st - s)) {
-                    sf = st - s;
-                } else {
-                    if (sf + delta <= 0) {
-                        sf = 0;
-                    } else {
-                        sf += delta;
-                    }
-                }
-                break;
-            case RESIZE_TO:
-                if ((st + delta) <= (sf + s)) {
-                    st = sf + s;
-                } else {
-                    if ((st + delta >= width)) {
-                        st = width;
-                    } else {
-                        st += delta;
-                    }
-                }
-                break;
-            case MOVING:
-                // collision on the left..
-                if ((sf + delta) < 0) {
-                    st = (st - sf);
-                    sf = 0;
-                    // .. or the right
-                } else if ((st + delta) >= width) {
-                    sf = width - (st - sf);
-                    st = width;
-                } else {
-                    sf += delta;
-                    st += delta;
-                }
-                break;
-        }
-
-        if (width != 0) {
-            double from = getReal(sf, max - min, min, width);
-            double to = getReal(st, max - min, min, width);
-
-            from = Math.max(from, min);
-            to = Math.min(to, max);
-            if (from < to) {
-                controller.setPosition(to);
-            }
-        }
-    }
 }

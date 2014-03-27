@@ -20,44 +20,39 @@ import ru.kohei.timeline.api.TimelineModelListener;
  */
 public class TimelineTopComponent extends JPanel implements TimelineModelListener {
         
-    private transient TimelineController controller;
+    private transient TimelineModel m_model;
+    private transient TimelineController m_controller;
         
     public TimelineTopComponent() {
         initComponents();
         
-        controller = Lookup.getDefault().lookup(TimelineController.class);
-        controller.addListener(this);
-        updateState();
+        m_controller = Lookup.getDefault().lookup(TimelineController.class);
+        m_model = m_controller.getModel();
+        m_controller.addListener(this);
         
         TimelineManipulator manipulator = (TimelineManipulator)timelineManipulator;
-        manipulator.initialize(controller);
+        manipulator.initialize(m_controller);
         
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                TimelineModel model = controller.getModel();
-                TimelineDrawer drawer = (TimelineDrawer)timelineDrawer;
-                drawer.setModel(model);
-            }
-        });
+        TimelineDrawer drawer = (TimelineDrawer)timelineDrawer;
+        drawer.initialize(m_controller);
+        
+        updateState();
     }
     
     @Override
     public void timelineModelChanged(TimelineModelEvent event) {
-        if ((event.getEventType() == TimelineModelEvent.EventType.MODEL_CHANGED) || 
-            (event.getEventType() == TimelineModelEvent.EventType.BOUNDS_VALIDITY_CHANGED)) 
-        {
+        if (event.getEventType() == TimelineModelEvent.EventType.MODEL_CHANGED) {
+            m_model = event.getSource();
+            updateState();            
+        } else if (event.getEventType() == TimelineModelEvent.EventType.BOUNDS_VALIDITY_CHANGED) {
             updateState();            
         }
-        
-        TimelineDrawer drawer = (TimelineDrawer)timelineDrawer;
-        drawer.consumeEvent(event);
     }
     
     private void updateState() {
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
-                TimelineModel model = controller.getModel();
-                boolean isModelEnabled = (model != null && model.hasValidBounds());
+                boolean isModelEnabled = (m_model != null && m_model.hasValidBounds());
                 if (isModelEnabled) {
                     CardLayout cardLayout = (CardLayout)topContainer.getLayout();
                     cardLayout.show(topContainer, "enabledPanel");
@@ -66,9 +61,6 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
                     CardLayout cardLayout = (CardLayout)topContainer.getLayout();
                     cardLayout.show(topContainer, "disabledPanel");
                 }
-                
-                TimelineDrawer drawer = (TimelineDrawer)timelineDrawer;
-                drawer.setModel(model);
             }
         });
     }    
