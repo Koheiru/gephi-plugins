@@ -14,7 +14,7 @@ import ru.kohei.timeline.api.TimelineModel;
  * @author Prostov Yury
  */
 public class TimelineModelImpl implements TimelineModel {
-
+    
     private Interval m_globalBounds;
     private Interval m_customBounds;
     private double m_position;
@@ -26,44 +26,47 @@ public class TimelineModelImpl implements TimelineModel {
     
     public TimelineModelImpl(DynamicModel dynamicModel) {
         m_globalBounds = new Interval(dynamicModel.getMin(), dynamicModel.getMax());
-        m_customBounds = null;
+        m_customBounds = m_globalBounds;
+        m_position = (isBounded(m_globalBounds)) ? (m_globalBounds.getLow()) : (0.0);
         
-        boolean isValidMin = !Double.isInfinite(m_globalBounds.getLow());
-        boolean isValidMax = !Double.isInfinite(m_globalBounds.getHigh());
-        m_position = (isValidMin && isValidMax) ? (m_globalBounds.getLow()) : (0.0);
-        
+        m_isPlaying = new AtomicBoolean(false);
         m_playStep = 1.0;
         m_playSpeed = 100;
-        m_isPlaying = new AtomicBoolean(false);
     }
+    
+    @Override
+    public boolean hasValidBounds() {
+        return isBounded(m_globalBounds);
+    }
+    
+    private boolean isBounded(Interval interval) {
+        return (isBounded(interval.getLow()) && isBounded(interval.getHigh()));
+    }
+    
+    private boolean isBounded(double value) {
+        return !Double.isInfinite(value);
+    }
+    
+    @Override
+    public Interval getGlobalBounds() {
+        return m_globalBounds;
+    } 
     
     public void setGlobalBounds(Interval bounds) {
         m_globalBounds = bounds;
     }
     
     @Override
-    public Interval getGlobalBounds() {
-        return m_globalBounds;
+    public boolean hasCustomBounds() {
+        return !isEqual(m_customBounds, m_globalBounds);
     }
     
-    @Override
-    public boolean hasValidBounds() {
-        boolean isValidMin = !Double.isInfinite(m_globalBounds.getLow());
-        boolean isValidMax = !Double.isInfinite(m_globalBounds.getHigh());
-        return (isValidMin && isValidMax);
+    private boolean isEqual(Interval a, Interval b) {
+        return (isEqual(a.getLow(), b.getLow()) && isEqual(a.getHigh(), b.getHigh()));
     }
     
-    public void setPosition(double position) {
-        m_position = position;
-    }
-    
-    @Override
-    public double getPosition() {
-        return m_position;
-    }
-    
-    public void setCustomBounds(Interval bounds) {
-        m_customBounds = bounds;
+    private boolean isEqual(double a, double b) {
+        return (Double.compare(a, b) == 0);
     }
     
     @Override
@@ -71,13 +74,17 @@ public class TimelineModelImpl implements TimelineModel {
         return m_customBounds;
     }
     
-    @Override
-    public boolean hasCustomBounds() {
-        return (m_customBounds != null);
+    public void setCustomBounds(Interval bounds) {
+        m_customBounds = bounds;
     }
     
-    public void setPlaying(boolean isPlaying) {
-        m_isPlaying.set(isPlaying);
+    @Override
+    public double getPosition() {
+        return m_position;
+    }
+    
+    public void setPosition(double position) {
+        m_position = position;
     }
     
     @Override
@@ -85,8 +92,8 @@ public class TimelineModelImpl implements TimelineModel {
         return m_isPlaying.get();
     }
     
-    public void setPlayStep(double stepSize) {
-        m_playStep = stepSize;
+    public void setPlaying(boolean isPlaying) {
+        m_isPlaying.set(isPlaying);
     }
     
     @Override
@@ -94,13 +101,17 @@ public class TimelineModelImpl implements TimelineModel {
         return m_playStep;
     }
     
-    public void setPlaySpeed(int stepDelay) {
-        m_playSpeed = stepDelay;
+    public void setPlayStep(double stepSize) {
+        m_playStep = stepSize;
     }
     
     @Override
     public int getPlaySpeed() {
         return m_playSpeed;
+    }
+    
+    public void setPlaySpeed(int stepDelay) {
+        m_playSpeed = stepDelay;
     }
     
 }

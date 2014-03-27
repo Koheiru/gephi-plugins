@@ -10,20 +10,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import org.gephi.data.attributes.api.AttributeColumn;
-import org.gephi.data.attributes.api.AttributeController;
-import org.gephi.data.attributes.api.AttributeModel;
-import org.gephi.data.attributes.api.AttributeUtils;
 import org.gephi.data.attributes.api.Estimator;
-import org.gephi.data.attributes.type.DynamicType;
 import org.gephi.data.attributes.type.Interval;
 import org.gephi.data.attributes.type.TimeInterval;
 import org.gephi.dynamic.api.DynamicController;
 import org.gephi.dynamic.api.DynamicModel;
 import org.gephi.dynamic.api.DynamicModelEvent;
 import org.gephi.dynamic.api.DynamicModelListener;
-import org.gephi.graph.api.Graph;
-import org.gephi.graph.api.GraphController;
 import org.gephi.project.api.ProjectController;
 import org.gephi.project.api.Workspace;
 import org.gephi.project.api.WorkspaceListener;
@@ -99,6 +92,7 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
     }
     
     private void setup() {        
+        // TODO: remove setTimeFormat and setEstimator => see this values and enable/disable panel.
         m_dynamicController.setTimeFormat(DynamicModel.TimeFormat.DOUBLE);
         m_dynamicController.setEstimator(Estimator.LAST);
         m_dynamicController.addModelListener(this);
@@ -130,9 +124,9 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
     private void boundsChanged(DynamicModelEvent event) {
         double min = event.getSource().getMin();
         double max = event.getSource().getMax();
-        Interval bounds = new Interval(min, max);
+        Interval globalBounds = new Interval(min, max);
         
-        updateGlobalBounds(bounds);
+        updateGlobalBounds(globalBounds);
         updateCustomBounds(m_model.getCustomBounds());
         updatePosition(m_model.getPosition());
     }
@@ -140,6 +134,9 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
     private void updateGlobalBounds(Interval newBounds) {
         boolean isOldBoundsValid = m_model.hasValidBounds();
         
+        if (!m_model.hasCustomBounds()) {
+            m_model.setCustomBounds(newBounds);
+        }
         m_model.setGlobalBounds(newBounds);
         double[] eventData = new double[]{ newBounds.getLow(), newBounds.getHigh() };
         notifyAllListeners(new TimelineModelEvent(EventType.GLOBAL_BOUNDS_CHANGED, m_model, eventData));
@@ -152,7 +149,6 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
     
     private void updateCustomBounds(Interval newBounds) {
         if (!m_model.hasValidBounds()) {
-            m_model.setCustomBounds(null);
             return;
         }
         
@@ -160,27 +156,19 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
             Interval globalBounds = m_model.getGlobalBounds();
             double min = Math.max(newBounds.getLow(), globalBounds.getLow());
             double max = Math.min(newBounds.getHigh(), globalBounds.getHigh());
+            newBounds = new Interval(min, max);
             
-            boolean minDisappeared = isEqual(min, globalBounds.getLow());
-            boolean maxDisappeared = isEqual(max, globalBounds.getHigh());
-            newBounds = (minDisappeared && maxDisappeared) ? (null) : (new Interval(min, max));
-        }
-        
-        if (m_model.hasCustomBounds()) {
-            if (newBounds != null) {
-                Interval oldBounds = m_model.getCustomBounds();
-                if (!isEqual(newBounds, oldBounds)) {
-                    m_model.setCustomBounds(newBounds);
-                    double[] eventData = new double[]{ newBounds.getLow(), newBounds.getHigh() };
-                    notifyAllListeners(new TimelineModelEvent(EventType.CUSTOM_BOUNDS_CHANGED, m_model, eventData));
-                }
+            Interval oldBounds = m_model.getCustomBounds();
+            if (!isEqual(newBounds, oldBounds)) {
+                m_model.setCustomBounds(newBounds);
+                double[] eventData = new double[]{ newBounds.getLow(), newBounds.getHigh() };
+                notifyAllListeners(new TimelineModelEvent(EventType.CUSTOM_BOUNDS_CHANGED, m_model, eventData));
             }
-            else {
-                m_model.setCustomBounds(null);
-                notifyAllListeners(new TimelineModelEvent(EventType.CUSTOM_BOUNDS_CHANGED, m_model, null));
-            }
+            
         } else {
-            if (newBounds != null) {
+            //! New bounds are NULL => we must reset custom bounds.
+            if (m_model.hasCustomBounds()) {
+                newBounds = m_model.getGlobalBounds();
                 m_model.setCustomBounds(newBounds);
                 double[] eventData = new double[]{ newBounds.getLow(), newBounds.getHigh() };
                 notifyAllListeners(new TimelineModelEvent(EventType.CUSTOM_BOUNDS_CHANGED, m_model, eventData));
@@ -194,7 +182,7 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
             return;
         }
         
-        Interval bounds = (m_model.hasCustomBounds()) ? (m_model.getCustomBounds()) : (m_model.getGlobalBounds());
+        Interval bounds = m_model.getCustomBounds();
         position = Math.min(Math.max(position, bounds.getLow()), bounds.getHigh());
         
         double oldPosition = m_model.getPosition();
@@ -206,12 +194,12 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
         }
     }
     
-    private boolean isEqual(double a, double b) {
-        return (Math.abs(a - b) < EPSILON);
-    }
-    
     private boolean isEqual(Interval a, Interval b) {
         return (isEqual(a.getLow(), b.getLow()) && isEqual(a.getHigh(), b.getHigh()));
+    }
+    
+    private boolean isEqual(double a, double b) {
+        return (Double.compare(a, b) == 0);
     }
     
     private void intervalChanged(DynamicModelEvent event) {
@@ -234,15 +222,15 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
     }
 
     @Override
-    public void setPosition(double position) {
-        updatePosition(position);
-    }
-
-    @Override
     public void setCustomBounds(Interval bounds) {
         updateCustomBounds(bounds);
     }
-
+    
+    @Override
+    public void setPosition(double position) {
+        updatePosition(position);
+    }
+    
     @Override
     public void startPlaying() {
         if (m_model.isPlaying()) {

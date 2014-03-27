@@ -19,9 +19,9 @@ public interface TimelineController {
     
     public TimelineModel getModel(Workspace workspace);
     
-    public void setPosition(double position);
-    
     public void setCustomBounds(Interval bounds);
+    
+    public void setPosition(double position);
     
     public void startPlaying();
     
