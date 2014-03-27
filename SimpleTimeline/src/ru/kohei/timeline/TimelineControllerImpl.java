@@ -143,6 +143,9 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
         
         boolean isBoundsValid = m_model.hasValidBounds();
         if (isBoundsValid != isOldBoundsValid) {
+            if (isBoundsValid) {
+                m_model.setPosition(newBounds.getLow());
+            }
             notifyAllListeners(new TimelineModelEvent(EventType.BOUNDS_VALIDITY_CHANGED, m_model, isBoundsValid));
         }
     }
