@@ -78,15 +78,19 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
 
     public void consumeEvent(TimelineModelEvent event) {
         switch (event.getEventType()) {
-            case INTERVAL:
-                double[] data = (double[]) event.getData();
-                setInterval(data[0], data[1]);
+            case POSITION_CHANGED:
+                double epsilon = 1.0;
+                Double data = (Double)event.getData();
+                setInterval(data.doubleValue() - epsilon, data.doubleValue() + epsilon);
                 break;
-            case CUSTOM_BOUNDS:
+            case CUSTOM_BOUNDS_CHANGED:
                 double[] data2 = (double[]) event.getData();
+                if (data2 == null) {
+                    data2 = new double[] { Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY };
+                }
                 setCustomBounds(data2[0], data2[1]);
                 break;
-            case MIN_MAX:
+            case GLOBAL_BOUNDS_CHANGED:
                 double[] data3 = (double[]) event.getData();
                 setMinMax(data3[0], data3[1]);
                 break;
@@ -96,12 +100,18 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
     public void setModel(TimelineModel model) {
         this.controller = Lookup.getDefault().lookup(TimelineController.class);
         this.model = model;
+        
         if (model != null) {
-            setMinMax(model.getMin(), model.getMax());
+            org.gephi.data.attributes.type.Interval globalBounds = model.getGlobalBounds();
+            setMinMax(globalBounds.getLow(), globalBounds.getHigh());
             if (model.hasCustomBounds()) {
-                setCustomBounds(model.getCustomMin(), model.getCustomMax());
+                org.gephi.data.attributes.type.Interval customBounds = model.getCustomBounds();
+                setCustomBounds(customBounds.getLow(), customBounds.getHigh());
             }
-            setInterval(model.getIntervalStart(), model.getIntervalEnd());
+            
+            double epsilon = 1.0;
+            double position = model.getPosition();
+            setInterval(position - epsilon, position + epsilon);
         } else {
             repaint();
         }
@@ -171,10 +181,13 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
             return;
         }
 
-        double min = model.getCustomMin();
-        double max = model.getCustomMax();
-        double intervalStart = model.getIntervalStart();
-        double intervalEnd = model.getIntervalEnd();
+        org.gephi.data.attributes.type.Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
+        double min = bounds.getLow();
+        double max = bounds.getHigh();
+            
+        double epsilon = 1.0;
+        double intervalStart = model.getPosition();
+        double intervalEnd = intervalStart + epsilon;
 
         int intervalStartPixel = Math.max(0, getPixelPosition(intervalStart, max - min, min, width));
         int intervalEndPixel = Math.min(width, getPixelPosition(intervalEnd, max - min, min, width));
@@ -301,10 +314,14 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
         tooltip.stop();
         
         int width = getWidth();
-        double min = model.getCustomMin();
-        double max = model.getCustomMax();
-        double intervalStart = model.getIntervalStart();
-        double intervalEnd = model.getIntervalEnd();
+        
+        org.gephi.data.attributes.type.Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
+        double min = bounds.getLow();
+        double max = bounds.getHigh();
+        
+        double epsilon = 1.0;
+        double intervalStart = model.getPosition();
+        double intervalEnd = intervalStart + epsilon;
 
         int sf = Math.max(0, getPixelPosition(intervalStart, max - min, min, width));
         int st = Math.min(width, getPixelPosition(intervalEnd, max - min, min, width));
@@ -376,10 +393,13 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
         int width = getWidth();
         int r = settings.selection.visibleHookWidth;
 
-        double min = model.getCustomMin();
-        double max = model.getCustomMax();
-        double intervalStart = model.getIntervalStart();
-        double intervalEnd = model.getIntervalEnd();
+        org.gephi.data.attributes.type.Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
+        double min = bounds.getLow();
+        double max = bounds.getHigh();
+        
+        double epsilon = 1.0;
+        double intervalStart = model.getPosition();
+        double intervalEnd = intervalStart + epsilon;
 
         int sf = Math.max(0, getPixelPosition(intervalStart, max - min, min, width));
         int st = Math.min(width, getPixelPosition(intervalEnd, max - min, min, width));
@@ -439,10 +459,13 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
         }
         int width = getWidth();
 
-        double min = model.getCustomMin();
-        double max = model.getCustomMax();
-        double intervalStart = model.getIntervalStart();
-        double intervalEnd = model.getIntervalEnd();
+        org.gephi.data.attributes.type.Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
+        double min = bounds.getLow();
+        double max = bounds.getHigh();
+        
+        double epsilon = 1.0;
+        double intervalStart = model.getPosition();
+        double intervalEnd = intervalStart + epsilon;
 
         int sf = Math.max(0, getPixelPosition(intervalStart, max - min, min, width));
         int st = Math.min(width, getPixelPosition(intervalEnd, max - min, min, width));
@@ -534,10 +557,11 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
         if (width != 0) {
             double from = getReal(sf, max - min, min, width);
             double to = getReal(st, max - min, min, width);
-            from = Math.max(from, model.getCustomMin());
-            to = Math.min(to, model.getCustomMax());
+
+            from = Math.max(from, min);
+            to = Math.min(to, max);
             if (from < to) {
-                controller.setInterval(from, to);
+                controller.setPosition(to);
             }
         }
     }

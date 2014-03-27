@@ -83,6 +83,7 @@ public class TimelineTooltip {
     }
 
     private void buildData(double currentPosition) {
+        /*
         if (model.getTimeFormat().equals(TimeFormat.DOUBLE)) {
             int exponentMin = (int) Math.round(Math.log10(model.getCustomMin()));
 
@@ -120,6 +121,7 @@ public class TimelineTooltip {
         }
         
         y = null;
+        */
     }
 
     private RichTooltip buildTooltip() {

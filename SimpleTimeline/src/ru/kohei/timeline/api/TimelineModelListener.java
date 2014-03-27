@@ -11,4 +11,5 @@ package ru.kohei.timeline.api;
 public interface TimelineModelListener {
 
     public void timelineModelChanged(TimelineModelEvent event);
+    
 }

@@ -25,9 +25,12 @@ public class TickGraph {
     private BufferedImage image;
 
     public BufferedImage getImage(TimelineModel model, int width, int height) {
-        double newMin = model.getCustomMin();
-        double newMax = model.getCustomMax();
-        TickParameters.TickType timeFormat = model.getTimeFormat().equals(TimeFormat.DOUBLE) ? TickParameters.TickType.DOUBLE : TickParameters.TickType.DATE;
+        org.gephi.data.attributes.type.Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
+        double newMin = bounds.getLow();
+        double newMax = bounds.getHigh();
+        
+        //TickParameters.TickType timeFormat = model.getTimeFormat().equals(TimeFormat.DOUBLE) ? TickParameters.TickType.DOUBLE : TickParameters.TickType.DATE;
+        TickParameters.TickType timeFormat = TickParameters.TickType.DOUBLE;
         if (parameters == null || newMax != max || newMin != min || parameters.getWidth() != width || parameters.getHeight() != height || !parameters.getType().equals(timeFormat)) {
             min = newMin;
             max = newMax;

@@ -14,10 +14,12 @@ import org.gephi.data.attributes.api.AttributeColumn;
 import org.gephi.data.attributes.api.AttributeController;
 import org.gephi.data.attributes.api.AttributeModel;
 import org.gephi.data.attributes.api.AttributeUtils;
+import org.gephi.data.attributes.api.Estimator;
 import org.gephi.data.attributes.type.DynamicType;
 import org.gephi.data.attributes.type.Interval;
 import org.gephi.data.attributes.type.TimeInterval;
 import org.gephi.dynamic.api.DynamicController;
+import org.gephi.dynamic.api.DynamicModel;
 import org.gephi.dynamic.api.DynamicModelEvent;
 import org.gephi.dynamic.api.DynamicModelListener;
 import org.gephi.graph.api.Graph;
@@ -27,7 +29,7 @@ import org.gephi.project.api.Workspace;
 import org.gephi.project.api.WorkspaceListener;
 import org.openide.util.Lookup;
 import org.openide.util.lookup.ServiceProvider;
-import ru.kohei.timeline.api.TimelineModel.PlayMode;
+import ru.kohei.timeline.api.TimelineModelEvent.EventType;
 import ru.kohei.timeline.api.*;
 
 
@@ -37,34 +39,34 @@ import ru.kohei.timeline.api.*;
  */
 @ServiceProvider(service = TimelineController.class)
 public class TimelineControllerImpl implements TimelineController, DynamicModelListener {
-
-    private final List<TimelineModelListener> listeners;
-    private TimelineModelImpl model;
-    private final DynamicController dynamicController;
-    private AttributeModel attributeModel;
-    private ScheduledExecutorService playExecutor;
-
+    
+    private final double EPSILON = 0.000000001;
+    
+    private TimelineModelImpl m_model;
+    private final DynamicController m_dynamicController;
+    private ScheduledExecutorService m_playExecutor;
+    private final List<TimelineModelListener> m_listeners;
+    
+    
     public TimelineControllerImpl() {
-        listeners = new ArrayList<TimelineModelListener>();
-
-        //Workspace events
-        ProjectController pc = Lookup.getDefault().lookup(ProjectController.class);
-        dynamicController = Lookup.getDefault().lookup(DynamicController.class);
-
-        pc.addWorkspaceListener(new WorkspaceListener() {
-
+        m_listeners = new ArrayList<TimelineModelListener>();
+        
+        m_dynamicController = Lookup.getDefault().lookup(DynamicController.class);
+        
+        ProjectController projectController = Lookup.getDefault().lookup(ProjectController.class);
+        projectController.addWorkspaceListener(new WorkspaceListener() {
             @Override
             public void initialize(Workspace workspace) {
             }
 
             @Override
             public void select(Workspace workspace) {
-                model = workspace.getLookup().lookup(TimelineModelImpl.class);
-                if (model == null) {
-                    model = new TimelineModelImpl(dynamicController.getModel(workspace));
-                    workspace.add(model);
+                m_model = workspace.getLookup().lookup(TimelineModelImpl.class);
+                if (m_model == null) {
+                    DynamicModel dynamicModel = m_dynamicController.getModel(workspace);
+                    m_model = new TimelineModelImpl(dynamicModel);
+                    workspace.add(m_model);
                 }
-                attributeModel = Lookup.getDefault().lookup(AttributeController.class).getModel(workspace);
                 setup();
             }
 
@@ -79,21 +81,151 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
 
             @Override
             public void disable() {
-                model = null;
-                attributeModel = null;
-                fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.MODEL, null, null));
+                m_model = null;
+                notifyAllListeners(new TimelineModelEvent(EventType.MODEL_CHANGED, m_model, null));
             }
         });
-
-        if (pc.getCurrentWorkspace() != null) {
-            model = pc.getCurrentWorkspace().getLookup().lookup(TimelineModelImpl.class);
-            if (model == null) {
-                model = new TimelineModelImpl(dynamicController.getModel(pc.getCurrentWorkspace()));
-                pc.getCurrentWorkspace().add(model);
+        
+        Workspace currentWorkspace = projectController.getCurrentWorkspace();
+        if (currentWorkspace != null) {
+            m_model = currentWorkspace.getLookup().lookup(TimelineModelImpl.class);
+            if (m_model == null) {
+                DynamicModel dynamicModel = m_dynamicController.getModel(currentWorkspace);
+                m_model = new TimelineModelImpl(dynamicModel);
+                currentWorkspace.add(m_model);
             }
-            attributeModel = Lookup.getDefault().lookup(AttributeController.class).getModel(pc.getCurrentWorkspace());
             setup();
         }
+    }
+    
+    private void setup() {        
+        m_dynamicController.setTimeFormat(DynamicModel.TimeFormat.DOUBLE);
+        m_dynamicController.setEstimator(Estimator.LAST);
+        m_dynamicController.addModelListener(this);
+        notifyAllListeners(new TimelineModelEvent(EventType.MODEL_CHANGED, m_model, null));
+    }
+
+    private void unsetup() {
+        m_dynamicController.removeModelListener(this);
+    }
+    
+    private void notifyAllListeners(TimelineModelEvent event) {
+        for (TimelineModelListener listener: m_listeners.toArray(new TimelineModelListener[0])) {
+            listener.timelineModelChanged(event);
+        }
+    }
+    
+    @Override
+    public void dynamicModelChanged(DynamicModelEvent event) {
+        if (event.getEventType().equals(DynamicModelEvent.EventType.MIN_CHANGED) ||
+            event.getEventType().equals(DynamicModelEvent.EventType.MAX_CHANGED)) {
+            boundsChanged(event);
+        } else if (event.getEventType().equals(DynamicModelEvent.EventType.VISIBLE_INTERVAL)) {
+            intervalChanged(event);
+        } else if (event.getEventType().equals(DynamicModelEvent.EventType.TIME_FORMAT)) {
+            timeFormatChanged(event);
+        }
+    }
+    
+    private void boundsChanged(DynamicModelEvent event) {
+        double min = event.getSource().getMin();
+        double max = event.getSource().getMax();
+        Interval bounds = new Interval(min, max);
+        
+        updateGlobalBounds(bounds);
+        updateCustomBounds(m_model.getCustomBounds());
+        updatePosition(m_model.getPosition());
+    }
+    
+    private void updateGlobalBounds(Interval newBounds) {
+        boolean isOldBoundsValid = m_model.hasValidBounds();
+        
+        m_model.setGlobalBounds(newBounds);
+        double[] eventData = new double[]{ newBounds.getLow(), newBounds.getHigh() };
+        notifyAllListeners(new TimelineModelEvent(EventType.GLOBAL_BOUNDS_CHANGED, m_model, eventData));
+        
+        boolean isBoundsValid = m_model.hasValidBounds();
+        if (isBoundsValid != isOldBoundsValid) {
+            notifyAllListeners(new TimelineModelEvent(EventType.BOUNDS_VALIDITY_CHANGED, m_model, isBoundsValid));
+        }
+    }
+    
+    private void updateCustomBounds(Interval newBounds) {
+        if (!m_model.hasValidBounds()) {
+            m_model.setCustomBounds(null);
+            return;
+        }
+        
+        if (newBounds != null) {
+            Interval globalBounds = m_model.getGlobalBounds();
+            double min = Math.max(newBounds.getLow(), globalBounds.getLow());
+            double max = Math.min(newBounds.getHigh(), globalBounds.getHigh());
+            
+            boolean minDisappeared = isEqual(min, globalBounds.getLow());
+            boolean maxDisappeared = isEqual(max, globalBounds.getHigh());
+            newBounds = (minDisappeared && maxDisappeared) ? (null) : (new Interval(min, max));
+        }
+        
+        if (m_model.hasCustomBounds()) {
+            if (newBounds != null) {
+                Interval oldBounds = m_model.getCustomBounds();
+                if (!isEqual(newBounds, oldBounds)) {
+                    m_model.setCustomBounds(newBounds);
+                    double[] eventData = new double[]{ newBounds.getLow(), newBounds.getHigh() };
+                    notifyAllListeners(new TimelineModelEvent(EventType.CUSTOM_BOUNDS_CHANGED, m_model, eventData));
+                }
+            }
+            else {
+                m_model.setCustomBounds(null);
+                notifyAllListeners(new TimelineModelEvent(EventType.CUSTOM_BOUNDS_CHANGED, m_model, null));
+            }
+        } else {
+            if (newBounds != null) {
+                m_model.setCustomBounds(newBounds);
+                double[] eventData = new double[]{ newBounds.getLow(), newBounds.getHigh() };
+                notifyAllListeners(new TimelineModelEvent(EventType.CUSTOM_BOUNDS_CHANGED, m_model, eventData));
+            }
+        }
+    }
+    
+    private void updatePosition(double position) {
+        if (!m_model.hasValidBounds()) {
+            m_model.setPosition(0.0);
+            return;
+        }
+        
+        Interval bounds = (m_model.hasCustomBounds()) ? (m_model.getCustomBounds()) : (m_model.getGlobalBounds());
+        position = Math.min(Math.max(position, bounds.getLow()), bounds.getHigh());
+        
+        double oldPosition = m_model.getPosition();
+        if (!isEqual(position, oldPosition)) {
+            m_model.setPosition(position);
+            double delta = EPSILON / 2.0;
+            m_dynamicController.setVisibleInterval(position - delta, position + delta);
+            notifyAllListeners(new TimelineModelEvent(EventType.POSITION_CHANGED, m_model, new Double(position)));
+        }
+    }
+    
+    private boolean isEqual(double a, double b) {
+        return (Math.abs(a - b) < EPSILON);
+    }
+    
+    private boolean isEqual(Interval a, Interval b) {
+        return (isEqual(a.getLow(), b.getLow()) && isEqual(a.getHigh(), b.getHigh()));
+    }
+    
+    private void intervalChanged(DynamicModelEvent event) {
+        double position = ((TimeInterval)event.getData()).getHigh();
+        updatePosition(position);
+    }
+    
+    private void timeFormatChanged(DynamicModelEvent event) {
+        notifyAllListeners(new TimelineModelEvent(EventType.MODEL_CHANGED, m_model, null));
+    }
+    
+    @Override
+    public synchronized TimelineModel getModel() {
+        return m_model;
     }
 
     @Override
@@ -102,310 +234,96 @@ public class TimelineControllerImpl implements TimelineController, DynamicModelL
     }
 
     @Override
-    public synchronized TimelineModel getModel() {
-        return model;
-    }
-
-    private void setup() {
-        fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.MODEL, model, null));
-
-        dynamicController.addModelListener(this);
-    }
-
-    private void unsetup() {
-        dynamicController.removeModelListener(this);
+    public void setPosition(double position) {
+        updatePosition(position);
     }
 
     @Override
-    public void dynamicModelChanged(DynamicModelEvent event) {
-        if (event.getEventType().equals(DynamicModelEvent.EventType.MIN_CHANGED)
-                || event.getEventType().equals(DynamicModelEvent.EventType.MAX_CHANGED)) {
-            double newMax = event.getSource().getMax();
-            double newMin = event.getSource().getMin();
-            setMinMax(newMin, newMax);
-        } else if (event.getEventType().equals(DynamicModelEvent.EventType.VISIBLE_INTERVAL)) {
-            TimeInterval timeInterval = (TimeInterval) event.getData();
-            double min = timeInterval.getLow();
-            double max = timeInterval.getHigh();
-            fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.INTERVAL, model, new double[]{min, max}));
-        } else if (event.getEventType().equals(DynamicModelEvent.EventType.TIME_FORMAT)) {
-            fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.MODEL, model, null)); //refresh display
-        }
-    }
-
-    private boolean setMinMax(double min, double max) {
-        if (model != null) {
-            if (min > max) {
-                throw new IllegalArgumentException("min should be less than max");
-            } else if (min == max) {
-                //Avoid setting values at this point
-                return false;
-            }
-            double previousBoundsMin = model.getCustomMin();
-            double previousBoundsMax = model.getCustomMax();
-
-            //Custom bounds
-            if (model.getCustomMin() == model.getPreviousMin()) {
-                model.setCustomMin(min);
-            } else if (model.getCustomMin() < min) {
-                model.setCustomMin(min);
-            }
-            if (model.getCustomMax() == model.getPreviousMax()) {
-                model.setCustomMax(max);
-            } else if (model.getCustomMax() > max) {
-                model.setCustomMax(max);
-            }
-
-            model.setPreviousMin(min);
-            model.setPreviousMax(max);
-
-            if (model.hasValidBounds()) {
-                fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.MIN_MAX, model, new double[]{min, max}));
-
-                if (model.getCustomMax() != max || model.getCustomMin() != min) {
-                    fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.CUSTOM_BOUNDS, model, new double[]{min, max}));
-                }
-            }
-
-            if ((Double.isInfinite(previousBoundsMax) || Double.isInfinite(previousBoundsMin)) && model.hasValidBounds()) {
-                fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.VALID_BOUNDS, model, true));
-            } else if (!Double.isInfinite(previousBoundsMax) && !Double.isInfinite(previousBoundsMin) && !model.hasValidBounds()) {
-                fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.VALID_BOUNDS, model, false));
-            }
-
-            return true;
-        }
-
-        return false;
+    public void setCustomBounds(Interval bounds) {
+        updateCustomBounds(bounds);
     }
 
     @Override
-    public void setCustomBounds(double min, double max) {
-        if (model != null) {
-            if (model.getCustomMin() != min || model.getCustomMax() != max) {
-                if (min >= max) {
-                    throw new IllegalArgumentException("min should be less than max");
-                }
-                if (min < model.getMin() || max > model.getMax()) {
-                    throw new IllegalArgumentException("Min and max should be in the bounds");
-                }
-
-                //Interval
-                if (model.getIntervalStart() < min || model.getIntervalEnd() > max) {
-                    dynamicController.setVisibleInterval(min, max);
-                }
-
-                //Custom bounds
-                double[] val = new double[]{min, max};
-                model.setCustomMin(min);
-                model.setCustomMax(max);
-                fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.CUSTOM_BOUNDS, model, val));
-            }
+    public void startPlaying() {
+        if (m_model.isPlaying()) {
+            return;
         }
+        
+        m_playExecutor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable task) {
+                    return new Thread(task, "Simple Timeline player");
+            }
+        });
+        m_playExecutor.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                stepForward();
+                
+                Interval bounds = (m_model.hasCustomBounds()) ? (m_model.getCustomBounds()) : (m_model.getGlobalBounds());
+                double maxBound = bounds.getHigh();
+                double position = m_model.getPosition();
+                
+                boolean isFinished = (position + EPSILON >= maxBound);
+                if (isFinished) {
+                    stopPlaying();
+                }
+                
+            }
+        }, m_model.getPlaySpeed(), m_model.getPlaySpeed(), TimeUnit.MILLISECONDS);
+        
+        m_model.setPlaying(true);
+        notifyAllListeners(new TimelineModelEvent(EventType.PLAY_STATE_CHANGED, m_model, new Boolean(true)));
     }
 
     @Override
-    public void setEnabled(boolean enabled) {
-        if (model != null) {
-            if (enabled != model.isEnabled() && model.hasValidBounds()) {
-                model.setEnabled(enabled);
-                fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.ENABLED, model, enabled));
-            }
-            if (!enabled) {
-                //Disable filtering
-                dynamicController.setVisibleInterval(new TimeInterval());
-            }
+    public void stopPlaying() {
+        if (!m_model.isPlaying()) {
+            return;
         }
+        
+        if (m_playExecutor != null) {
+            m_playExecutor.shutdown();
+        }
+        m_model.setPlaying(false);
+        notifyAllListeners(new TimelineModelEvent(EventType.PLAY_STATE_CHANGED, m_model, new Boolean(false)));
     }
 
     @Override
-    public void setInterval(double from, double to) {
-        if (model != null) {
-            if (model.getIntervalStart() != from || model.getIntervalEnd() != to) {
-                if (from >= to) {
-                    throw new IllegalArgumentException("from should be less than to");
-                }
-                if (from < model.getCustomMin() || to > model.getCustomMax()) {
-                    throw new IllegalArgumentException("From and to should be in the bounds");
-                }
-                dynamicController.setVisibleInterval(from, to);
-            }
-        }
+    public void stepForward() {
+        double step = m_model.getPlayStep();
+        double position = m_model.getPosition();
+        setPosition(position + step);
     }
 
     @Override
-    public AttributeColumn[] getDynamicGraphColumns() {
-        if (attributeModel != null) {
-            List<AttributeColumn> columns = new ArrayList<AttributeColumn>();
-            AttributeUtils utils = AttributeUtils.getDefault();
-            for (AttributeColumn col : attributeModel.getGraphTable().getColumns()) {
-                if (utils.isDynamicNumberColumn(col)) {
-                    columns.add(col);
-                }
-            }
-            return columns.toArray(new AttributeColumn[0]);
-        }
-        return new AttributeColumn[0];
+    public void stepBackward() {
+        double step = m_model.getPlayStep();
+        double position = m_model.getPosition();
+        setPosition(position - step);
     }
 
-    protected void fireTimelineModelEvent(TimelineModelEvent event) {
-        for (TimelineModelListener listener : listeners.toArray(new TimelineModelListener[0])) {
-            listener.timelineModelChanged(event);
-        }
+    @Override
+    public void setPlayStep(double stepSize) {
+        m_model.setPlayStep(stepSize);
     }
 
+    @Override
+    public void setPlaySpeed(int stepDelay) {
+        m_model.setPlaySpeed(stepDelay);
+    }
+    
     @Override
     public synchronized void addListener(TimelineModelListener listener) {
-        if (!listeners.contains(listener)) {
-            listeners.add(listener);
+        if (!m_listeners.contains(listener)) {
+            m_listeners.add(listener);
         }
     }
 
     @Override
     public synchronized void removeListener(TimelineModelListener listener) {
-        listeners.remove(listener);
-    }
-
-    @Override
-    public void startPlay() {
-        if (model != null && !model.isPlaying()) {
-            model.setPlaying(true);
-            playExecutor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
-
-                @Override
-                public Thread newThread(Runnable r) {
-                    return new Thread(r, "Timeline animator");
-                }
-            });
-            playExecutor.scheduleAtFixedRate(new Runnable() {
-
-                @Override
-                public void run() {
-                    stepForward();
-                    
-                    boolean isFinished = false;
-                    boolean isIncreasingInterval = (model.getPlayStep() > 0);
-                    if (isIncreasingInterval) {
-                        double bound = model.getCustomMax();
-                        double position = model.getIntervalEnd();
-                        double epsilon = 0.000000001;
-                        isFinished = (position - bound + epsilon > 0.0);
-                    } else {
-                        double bound = model.getCustomMin();
-                        double position = model.getIntervalStart();
-                        double epsilon = 0.000000001;
-                        isFinished = (position - bound - epsilon < 0.0);                        
-                    }
-                    
-                    if (isFinished) {
-                        stopPlay();
-                    }
-                }
-            }, model.getPlayDelay(), model.getPlayDelay(), TimeUnit.MILLISECONDS);
-            fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.PLAY_START, model, null));
-        }
-    }
-
-    @Override
-    public void stopPlay() {
-        if (model != null && model.isPlaying()) {
-            model.setPlaying(false);
-            fireTimelineModelEvent(new TimelineModelEvent(TimelineModelEvent.EventType.PLAY_STOP, model, null));
-        }
-        if (playExecutor != null) {
-            playExecutor.shutdown();
-        }
-    }
-
-    private double getStepValue() {
-        double min = model.getCustomMin();
-        double max = model.getCustomMax();
-        double duration = max - min;
-        double step = (duration * model.getPlayStep());
-        return step;
+        m_listeners.remove(listener);
     }
     
-    @Override
-    public void stepForward() {
-        double step = getStepValue();
-        double intervalStart  = model.getIntervalStart();
-        double intervalEnd    = model.getIntervalEnd();
-        
-        boolean isIncreasingInterval = (step > 0);
-        boolean isBothBoundsMoving = (model.getPlayMode() == PlayMode.TWO_BOUNDS);
-        if (isIncreasingInterval) {
-            double max = model.getCustomMax();
-            intervalEnd = Math.min(intervalEnd + step, max);
-            if (isBothBoundsMoving) {
-                double epsilon = 0.000000001;
-                intervalStart = Math.min(intervalStart + step, max - epsilon);
-            }
-        } else {
-            //! Variable 'step' have negative value.
-            double min = model.getCustomMin();
-            intervalStart = Math.max(intervalStart + step, min);
-            if (isBothBoundsMoving) {
-                double epsilon = 0.000000001;
-                intervalEnd = Math.max(intervalEnd + step, min + epsilon);
-            }     
-        }
-        
-        setInterval(intervalStart, intervalEnd);
-    }
-    
-    @Override
-    public void stepBackward() {
-        double step = getStepValue();
-        double intervalStart  = model.getIntervalStart();
-        double intervalEnd    = model.getIntervalEnd();
-        
-        boolean isIncreasingInterval = (step > 0);
-        boolean isBothBoundsMoving = (model.getPlayMode() == PlayMode.TWO_BOUNDS);
-        if (isIncreasingInterval) {
-            if (isBothBoundsMoving) {
-                double min = model.getCustomMin();
-                double epsilon = 0.000000001;                
-                intervalStart = Math.max(intervalStart - step, min);
-                intervalEnd = Math.max(intervalEnd - step, min + epsilon);
-            } else {
-                double epsilon = 0.000000001;
-                intervalEnd = Math.max(intervalEnd - step, intervalStart + epsilon);
-            }
-        } else {
-            //! Variable 'step' have negative value.
-            if (isBothBoundsMoving) {
-                double max = model.getCustomMax();
-                double epsilon = 0.000000001;
-                intervalStart = Math.min(intervalStart - step, max - epsilon);
-                intervalEnd = Math.min(intervalEnd - step, max);
-            } else {
-                double epsilon = 0.000000001;
-                intervalStart = Math.min(intervalStart - step, intervalEnd - epsilon);
-            }
-        }
-        
-        setInterval(intervalStart, intervalEnd);        
-    }
-    
-    @Override
-    public void setPlaySpeed(int delay) {
-        if (model != null) {
-            model.setPlayDelay(delay);
-        }
-    }
-
-    @Override
-    public void setPlayStep(double step) {
-        if (model != null) {
-            model.setPlayStep(step);
-        }
-    }
-
-    @Override
-    public void setPlayMode(PlayMode playMode) {
-        if (model != null) {
-            model.setPlayMode(playMode);
-        }
-    }
 }
 

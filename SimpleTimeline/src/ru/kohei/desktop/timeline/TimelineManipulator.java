@@ -6,6 +6,7 @@ package ru.kohei.desktop.timeline;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import org.gephi.data.attributes.type.Interval;
 import ru.kohei.timeline.api.TimelineController;
 import ru.kohei.timeline.api.TimelineModel;
 
@@ -24,9 +25,9 @@ public class TimelineManipulator extends javax.swing.JPanel {
             public void actionPerformed(ActionEvent event) {
                 TimelineModel model = controller.getModel();
                 if (!model.isPlaying()) {
-                    controller.startPlay();
+                    controller.startPlaying();
                 } else {
-                    controller.stopPlay();
+                    controller.stopPlaying();
                 }
             }
         });
@@ -57,11 +58,8 @@ public class TimelineManipulator extends javax.swing.JPanel {
             public void actionPerformed(ActionEvent event) {
                 TimelineModel model = controller.getModel();
                 if (model != null) {
-                    double intervalBegin = model.getIntervalStart();
-                    double intervalEnd   = model.getIntervalEnd();
-                    double intervalLength = intervalEnd - intervalBegin;
-                    double min = model.getCustomMin();
-                    controller.setInterval(min, min + intervalLength);
+                    Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
+                    controller.setPosition(bounds.getLow());
                 }
             }
         });
@@ -70,11 +68,8 @@ public class TimelineManipulator extends javax.swing.JPanel {
             public void actionPerformed(ActionEvent event) {
                 TimelineModel model = controller.getModel();
                 if (model != null) {
-                    double intervalBegin = model.getIntervalStart();
-                    double intervalEnd   = model.getIntervalEnd();
-                    double intervalLength = intervalEnd - intervalBegin;
-                    double max = model.getCustomMax();
-                    controller.setInterval(max - intervalLength, max);                    
+                    Interval bounds = (model.hasCustomBounds()) ? (model.getCustomBounds()) : (model.getGlobalBounds());
+                    controller.setPosition(bounds.getHigh());                   
                 }
             }
         });

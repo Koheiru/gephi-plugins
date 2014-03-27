@@ -4,7 +4,7 @@
  */
 package ru.kohei.timeline.api;
 
-import org.gephi.dynamic.api.DynamicModel;
+import org.gephi.data.attributes.type.Interval;
 
 /**
  *
@@ -12,37 +12,20 @@ import org.gephi.dynamic.api.DynamicModel;
  */
 public interface TimelineModel {
     
-    public enum PlayMode {
-        ONE_BOUND,
-        TWO_BOUNDS
-    };
-    
-    public boolean isEnabled();
-    
-    public double getMin();
-    
-    public double getMax();
-    
-    public double getCustomMin();
-    
-    public double getCustomMax();
-    
-    public boolean hasCustomBounds();
+    public Interval getGlobalBounds();
     
     public boolean hasValidBounds();
     
-    public double getIntervalStart();
+    public double getPosition();
     
-    public double getIntervalEnd();
+    public Interval getCustomBounds();
     
-    public DynamicModel.TimeFormat getTimeFormat();
-    
-    public int getPlayDelay();
-    
-    public double getPlayStep();
+    public boolean hasCustomBounds();
     
     public boolean isPlaying();
     
-    public PlayMode getPlayMode();
+    public double getPlayStep();
+    
+    public int getPlaySpeed();
     
 }

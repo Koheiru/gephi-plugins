@@ -43,9 +43,8 @@ public class TimelineTopComponent extends JPanel implements TimelineModelListene
     
     @Override
     public void timelineModelChanged(TimelineModelEvent event) {
-        if ((event.getEventType() == TimelineModelEvent.EventType.MODEL) || 
-            (event.getEventType() == TimelineModelEvent.EventType.ENABLED) || 
-            (event.getEventType() == TimelineModelEvent.EventType.VALID_BOUNDS)) 
+        if ((event.getEventType() == TimelineModelEvent.EventType.MODEL_CHANGED) || 
+            (event.getEventType() == TimelineModelEvent.EventType.BOUNDS_VALIDITY_CHANGED)) 
         {
             updateState();            
         }

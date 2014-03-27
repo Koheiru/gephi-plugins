@@ -5,8 +5,8 @@
 package ru.kohei.timeline;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.gephi.data.attributes.type.Interval;
 import org.gephi.dynamic.api.DynamicModel;
-import org.gephi.dynamic.api.DynamicModel.TimeFormat;
 import ru.kohei.timeline.api.TimelineModel;
 
 /**
@@ -15,155 +15,92 @@ import ru.kohei.timeline.api.TimelineModel;
  */
 public class TimelineModelImpl implements TimelineModel {
 
-    private boolean enabled;
-    private DynamicModel dynamicModel;
-    private double customMin;
-    private double customMax;
+    private Interval m_globalBounds;
+    private Interval m_customBounds;
+    private double m_position;
     
-    private int playDelay;
-    private AtomicBoolean playing;
-    private double playStep;
-    private PlayMode playMode;
+    private AtomicBoolean m_isPlaying;
+    private double m_playStep;
+    private int m_playSpeed;
     
-    private double previousMin;
-    private double previousMax;
-
+    
     public TimelineModelImpl(DynamicModel dynamicModel) {
-        this.dynamicModel = dynamicModel;
-        this.customMin = dynamicModel.getMin();
-        this.customMax = dynamicModel.getMax();
-        this.previousMin = customMin;
-        this.previousMax = customMax;
-        playDelay = 100;
-        playStep = 0.01;
-        playing = new AtomicBoolean(false);
-        playMode = PlayMode.TWO_BOUNDS;
+        m_globalBounds = new Interval(dynamicModel.getMin(), dynamicModel.getMax());
+        m_customBounds = null;
+        
+        boolean isValidMin = !Double.isInfinite(m_globalBounds.getLow());
+        boolean isValidMax = !Double.isInfinite(m_globalBounds.getHigh());
+        m_position = (isValidMin && isValidMax) ? (m_globalBounds.getLow()) : (0.0);
+        
+        m_playStep = 1.0;
+        m_playSpeed = 100;
+        m_isPlaying = new AtomicBoolean(false);
     }
-
+    
+    public void setGlobalBounds(Interval bounds) {
+        m_globalBounds = bounds;
+    }
+    
     @Override
-    public boolean isEnabled() {
-        return enabled;
+    public Interval getGlobalBounds() {
+        return m_globalBounds;
     }
-
-    @Override
-    public double getMin() {
-        return dynamicModel.getMin();
-    }
-
-    @Override
-    public double getMax() {
-        return dynamicModel.getMax();
-    }
-
-    public double getPreviousMin() {
-        return previousMin;
-    }
-
-    public double getPreviousMax() {
-        return previousMax;
-    }
-
-    public void setPreviousMax(double previousMax) {
-        this.previousMax = previousMax;
-    }
-
-    public void setPreviousMin(double previousMin) {
-        this.previousMin = previousMin;
-    }
-
-    @Override
-    public double getCustomMin() {
-        return customMin;
-    }
-
-    @Override
-    public double getCustomMax() {
-        return customMax;
-    }
-
-    @Override
-    public boolean hasCustomBounds() {
-        return customMax != dynamicModel.getMax() || customMin != dynamicModel.getMin();
-    }
-
-    @Override
-    public double getIntervalStart() {
-        double vi = dynamicModel.getVisibleInterval().getLow();
-        if(Double.isInfinite(vi)) {
-            return getCustomMin();
-        }
-        return vi;
-    }
-
-    @Override
-    public double getIntervalEnd() {
-        double vi = dynamicModel.getVisibleInterval().getHigh();
-        if(Double.isInfinite(vi)) {
-            return getCustomMax();
-        }
-        return vi;
-    }
-
-    @Override
-    public TimeFormat getTimeFormat() {
-        return dynamicModel.getTimeFormat();
-    }
-
-    public DynamicModel getDynamicModel() {
-        return dynamicModel;
-    }
-
-    public void setCustomMax(double customMax) {
-        this.customMax = customMax;
-    }
-
-    public void setCustomMin(double customMin) {
-        this.customMin = customMin;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
+    
     @Override
     public boolean hasValidBounds() {
-        return !Double.isInfinite(dynamicModel.getMin()) && !Double.isInfinite(dynamicModel.getMax());
+        boolean isValidMin = !Double.isInfinite(m_globalBounds.getLow());
+        boolean isValidMax = !Double.isInfinite(m_globalBounds.getHigh());
+        return (isValidMin && isValidMax);
     }
-
+    
+    public void setPosition(double position) {
+        m_position = position;
+    }
+    
+    @Override
+    public double getPosition() {
+        return m_position;
+    }
+    
+    public void setCustomBounds(Interval bounds) {
+        m_customBounds = bounds;
+    }
+    
+    @Override
+    public Interval getCustomBounds() {
+        return m_customBounds;
+    }
+    
+    @Override
+    public boolean hasCustomBounds() {
+        return (m_customBounds != null);
+    }
+    
+    public void setPlaying(boolean isPlaying) {
+        m_isPlaying.set(isPlaying);
+    }
+    
     @Override
     public boolean isPlaying() {
-        return playing.get();
+        return m_isPlaying.get();
     }
-
-    public void setPlaying(boolean playing) {
-        this.playing.set(playing);
+    
+    public void setPlayStep(double stepSize) {
+        m_playStep = stepSize;
     }
-
-    @Override
-    public int getPlayDelay() {
-        return playDelay;
-    }
-
-    public void setPlayDelay(int playDelay) {
-        this.playDelay = playDelay;
-    }
-
+    
     @Override
     public double getPlayStep() {
-        return playStep;
+        return m_playStep;
     }
-
-    public void setPlayStep(double playStep) {
-        this.playStep = playStep;
+    
+    public void setPlaySpeed(int stepDelay) {
+        m_playSpeed = stepDelay;
     }
-
+    
     @Override
-    public PlayMode getPlayMode() {
-        return playMode;
-    }
-
-    public void setPlayMode(PlayMode playMode) {
-        this.playMode = playMode;
+    public int getPlaySpeed() {
+        return m_playSpeed;
     }
     
 }

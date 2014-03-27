@@ -11,14 +11,12 @@ package ru.kohei.timeline.api;
 public final class TimelineModelEvent {
 
     public enum EventType {
-        MODEL, 
-        MIN_MAX, 
-        INTERVAL, 
-        CUSTOM_BOUNDS, 
-        ENABLED, 
-        PLAY_START, 
-        PLAY_STOP,
-        VALID_BOUNDS
+        MODEL_CHANGED, 
+        GLOBAL_BOUNDS_CHANGED,
+        BOUNDS_VALIDITY_CHANGED,
+        CUSTOM_BOUNDS_CHANGED,
+        POSITION_CHANGED,
+        PLAY_STATE_CHANGED,
     };
     
     private final EventType type;

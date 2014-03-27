@@ -6,6 +6,7 @@ package ru.kohei.timeline.api;
 
 import org.gephi.project.api.Workspace;
 import org.gephi.data.attributes.api.AttributeColumn;
+import org.gephi.data.attributes.type.Interval;
 
 
 /**
@@ -14,33 +15,28 @@ import org.gephi.data.attributes.api.AttributeColumn;
  */
 public interface TimelineController {
     
-    public TimelineModel getModel(Workspace workspace);
-    
     public TimelineModel getModel();
     
-    public void setCustomBounds(double min, double max);
+    public TimelineModel getModel(Workspace workspace);
     
-    public void setEnabled(boolean enabled);
+    public void setPosition(double position);
     
-    public void setInterval(double from, double to);
+    public void setCustomBounds(Interval bounds);
     
-    public void startPlay();
+    public void startPlaying();
     
-    public void stopPlay();
+    public void stopPlaying();
     
     public void stepForward();
     
     public void stepBackward();
     
-    public void setPlaySpeed(int delay);
-    
-    public void setPlayStep(double step);
-    
-    public void setPlayMode(TimelineModel.PlayMode playMode);
-    
-    public AttributeColumn[] getDynamicGraphColumns();
+    public void setPlayStep(double stepSize);
+        
+    public void setPlaySpeed(int stepDelay);
     
     public void addListener(TimelineModelListener listener);
     
     public void removeListener(TimelineModelListener listener);
+    
 }
