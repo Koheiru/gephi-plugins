@@ -50,8 +50,6 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
     private TickGraph tickGraph = new TickGraph();
     //Sparkline
     private Sparkline sparkline = new Sparkline();
-    //Tooltip
-    private TimelineTooltip tooltip = new TimelineTooltip();
 
     public enum TimelineState {
 
@@ -310,8 +308,6 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
         latestMousePositionX = x;
         currentMousePositionX = latestMousePositionX;
         int r = settings.selection.visibleHookWidth + settings.selection.invisibleHookMargin;
-
-        tooltip.stop();
         
         int width = getWidth();
         
@@ -369,7 +365,6 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
             currentMousePositionX = latestMousePositionX;
         }
         mouseInside = false;
-        tooltip.stop();
         repaint();
     }
 
@@ -403,12 +398,6 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
 
         int sf = Math.max(0, getPixelPosition(intervalStart, max - min, min, width));
         int st = Math.min(width, getPixelPosition(intervalEnd, max - min, min, width));
-
-
-        //Tooltip
-        double pos = getReal(currentMousePositionX, max - min, min, width);
-        tooltip.setModel(model);
-        tooltip.start(pos, evt.getLocationOnScreen(), this);
 
         // SELECTED ZONE BEGIN POSITION, IN PIXELS
         // int sf = (int) (model.getFromFloat() * (double) w);
@@ -474,8 +463,6 @@ public class TimelineDrawer extends JPanel implements MouseListener, MouseMotion
         currentMousePositionX = Math.max(0, currentMousePositionX);
         currentMousePositionX = Math.min(width, currentMousePositionX);
         int x = currentMousePositionX;
-
-        tooltip.stop();
 
         int r = settings.selection.visibleHookWidth;
 
