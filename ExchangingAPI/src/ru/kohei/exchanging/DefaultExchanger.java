@@ -17,12 +17,6 @@ public abstract class DefaultExchanger implements Exchanger {
     private List<MessageListener> m_listeners = new ArrayList();
     
     @Override
-    public abstract String name();
-
-    @Override
-    public abstract String description();
-
-    @Override
     public List<String> acceptedExchangers() {
         final List<String> emptyList = new ArrayList();
         return emptyList;
@@ -51,7 +45,7 @@ public abstract class DefaultExchanger implements Exchanger {
     @Override
     public void addListener(MessageListener listener) {
         synchronized(m_listeners) {
-            m_listeners.remove(listener);
+            m_listeners.add(listener);
         }
     }
 

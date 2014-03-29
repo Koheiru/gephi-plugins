@@ -172,6 +172,8 @@ public abstract class DefaultExchangingPoint implements ExchangingPoint, Exchang
                     receivers.add(exchanger);
                 }
             }
+            
+            exchanger.addListener(this);
             m_exchangers.add(exchanger);
         }
     }
@@ -191,6 +193,8 @@ public abstract class DefaultExchangingPoint implements ExchangingPoint, Exchang
                     }
                 }
             }
+            
+            exchanger.removeListener(this);
             m_exchangers.remove(exchanger);
         }
     }
@@ -200,6 +204,10 @@ public abstract class DefaultExchangingPoint implements ExchangingPoint, Exchang
         synchronized (m_exchangers) {
             synchronized (m_receivingExchangers) {
                 m_receivingExchangers.clear();
+            }
+            
+            for (Exchanger exchanger: m_exchangers) {
+                exchanger.removeListener(this);
             }
             m_exchangers.clear();
         }

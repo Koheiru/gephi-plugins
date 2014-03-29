@@ -13,11 +13,7 @@ import java.util.List;
 public interface Exchanger {
     public static interface MessageListener {
         public void onMessageSent(Message message);
-    }    
-    
-    public String name();
-    
-    public String description();
+    }
     
     public List<String> acceptedExchangers();
     
