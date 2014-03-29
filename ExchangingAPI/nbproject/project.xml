@@ -15,7 +15,10 @@
                     </run-dependency>
                 </dependency>
             </module-dependencies>
-            <public-packages/>
+            <public-packages>
+                <package>ru.kohei.exchanging</package>
+                <package>ru.kohei.exchanging.api</package>
+            </public-packages>
             <class-path-extension>
                 <runtime-relative-path>ext/json_simple-1.1.jar</runtime-relative-path>
                 <binary-origin>release/modules/ext/json_simple-1.1.jar</binary-origin>

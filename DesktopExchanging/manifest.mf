@@ -1,5 +1,6 @@
 Manifest-Version: 1.0
-OpenIDE-Module: ru.kohei.exchanging.desktop
-OpenIDE-Module-Localizing-Bundle: ru/kohei/exchanging/desktop/Bundle.properties
+OpenIDE-Module: ru.kohei.desktop.exchanging
+OpenIDE-Module-Localizing-Bundle: ru/kohei/desktop/exchanging/Bundle.properties
+OpenIDE-Module-Requires: org.openide.windows.WindowManager
 OpenIDE-Module-Specification-Version: 1.0
 
