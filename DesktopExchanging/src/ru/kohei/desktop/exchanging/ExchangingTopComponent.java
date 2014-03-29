@@ -47,6 +47,11 @@ public final class ExchangingTopComponent extends TopComponent {
         putClientProperty(TopComponent.PROP_MAXIMIZATION_DISABLED, Boolean.TRUE);
 
         m_exchangingServer = Lookup.getDefault().lookup(ExchangingServer.class);
+        if (m_exchangingServer == null) {
+            setEnabled(false);
+            return;
+        }
+        
         m_exchangingServer.addListener(new ExchangingPoint.StateListener() {
             @Override
             public void onStateChanged(ExchangingPoint.State state) {
