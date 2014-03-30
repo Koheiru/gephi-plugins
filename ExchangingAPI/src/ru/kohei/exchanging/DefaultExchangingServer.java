@@ -172,7 +172,7 @@ public class DefaultExchangingServer extends DefaultExchangingPoint implements E
     @Override
     public void onMessageSent(Message message) {
         if (state() == State.OPENED) {
-            m_clientChannelGroup.write(message);
+            m_clientChannelGroup.writeAndFlush(message);
         }
     }
 }

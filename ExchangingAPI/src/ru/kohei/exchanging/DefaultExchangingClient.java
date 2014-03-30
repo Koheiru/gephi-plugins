@@ -157,7 +157,7 @@ public class DefaultExchangingClient extends DefaultExchangingPoint implements E
     @Override
     public void onMessageSent(Message message) {
         if (state() == State.OPENED) {
-            m_channel.write(message);
+            m_channel.writeAndFlush(message);
         }
     }
     
