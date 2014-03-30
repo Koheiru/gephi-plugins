@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://www.netbeans.org/ns/project/1">
+    <type>org.netbeans.modules.apisupport.project</type>
+    <configuration>
+        <data xmlns="http://www.netbeans.org/ns/nb-module-project/3">
+            <code-name-base>ru.kohei.exchanging.timeline</code-name-base>
+            <suite-component/>
+            <module-dependencies>
+                <dependency>
+                    <code-name-base>org.gephi.timeline</code-name-base>
+                    <build-prerequisite/>
+                    <compile-dependency/>
+                    <run-dependency>
+                        <specification-version>0.8.2</specification-version>
+                    </run-dependency>
+                </dependency>
+                <dependency>
+                    <code-name-base>org.openide.util.lookup</code-name-base>
+                    <build-prerequisite/>
+                    <compile-dependency/>
+                    <run-dependency>
+                        <specification-version>8.15.2</specification-version>
+                    </run-dependency>
+                </dependency>
+                <dependency>
+                    <code-name-base>ru.kohei.exchanging</code-name-base>
+                    <build-prerequisite/>
+                    <compile-dependency/>
+                    <run-dependency>
+                        <specification-version>1.0</specification-version>
+                    </run-dependency>
+                </dependency>
+            </module-dependencies>
+            <public-packages>
+                <package>ru.kohei.exchanging.timeline</package>
+                <package>ru.kohei.exchanging.timeline.plugin</package>
+            </public-packages>
+            <class-path-extension>
+                <runtime-relative-path>ext/json_simple-1.1.jar</runtime-relative-path>
+                <binary-origin>release/modules/ext/json_simple-1.1.jar</binary-origin>
+            </class-path-extension>
+        </data>
+    </configuration>
+</project>
