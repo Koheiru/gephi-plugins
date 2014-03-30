@@ -24,7 +24,6 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import org.json.simple.JSONObject;
 import org.openide.util.lookup.ServiceProvider;
 import ru.kohei.exchanging.api.ExchangingServer;
 import ru.kohei.exchanging.api.Message;
