@@ -6,7 +6,6 @@ package ru.kohei.exchanging.timeline;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.json.simple.JSONObject;
 import ru.kohei.exchanging.DefaultExchanger;
 
 /**
@@ -53,15 +52,10 @@ public abstract class TimelineExchanger extends DefaultExchanger {
     }
     
     protected void sendTimelineMessage(String action, String param, Object value) {
-        JSONObject data = new JSONObject();
-        data.put(param, value);
-        sendMessage(m_source, action, data);
+        sendMessage(m_source, action, new Object[] { param, value });
     }
     
     protected void sendTimelineMessage(String action, String param1, Object value1, String param2, Object value2) {
-        JSONObject data = new JSONObject();
-        data.put(param1, value1);
-        data.put(param2, value2);
-        sendMessage(m_source, action, data);
+        sendMessage(m_source, action, new Object[] { param1, value1, param2, value2 });
     }
 }
