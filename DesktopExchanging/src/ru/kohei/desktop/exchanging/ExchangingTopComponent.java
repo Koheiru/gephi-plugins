@@ -79,6 +79,7 @@ public final class ExchangingTopComponent extends TopComponent {
             @Override
             public void actionPerformed(ActionEvent action) {
                 m_exchangingServer.close();
+                m_exchangingServer.detachAllExchangers();
             }
         });
     }
