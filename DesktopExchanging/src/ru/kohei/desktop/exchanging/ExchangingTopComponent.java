@@ -13,8 +13,10 @@ import org.openide.awt.ActionReference;
 import org.openide.util.Lookup;
 import org.openide.windows.TopComponent;
 import org.openide.util.NbBundle.Messages;
+import ru.kohei.exchanging.api.Exchanger;
 import ru.kohei.exchanging.api.ExchangingPoint;
 import ru.kohei.exchanging.api.ExchangingServer;
+import ru.kohei.exchanging.timeline.plugin.GephiTimelineExporter;
 
 /**
  * Top component which displays something.
@@ -72,6 +74,9 @@ public final class ExchangingTopComponent extends TopComponent {
             public void actionPerformed(ActionEvent action) {
                 Integer port = Integer.parseInt(portField.getText());
                 m_exchangingServer.open(port.intValue());
+                
+                Exchanger timelineExchanger = new GephiTimelineExporter();
+                m_exchangingServer.attachExchanger(timelineExchanger);
             }
         });
         
